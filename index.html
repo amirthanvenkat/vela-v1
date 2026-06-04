@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#1B2D4F" />
+<title>VELA · Your money, moving.</title>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<!-- Tailwind Play CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          midnight: '#1B2D4F',
+          coral: '#FF6B6B',
+          blush: '#FFF8F5',
+          leaf: '#4CAF82',
+          deepnavy: '#0D1B2A',
+          charcoal: '#1C1C1C',
+          slate2: '#7A8899',
+        },
+        fontFamily: {
+          serif: ['Fraunces', 'serif'],
+          sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+          mono: ['"DM Mono"', 'ui-monospace', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+
+<!-- React + ReactDOM + Framer Motion + Babel (single-file build, no bundler needed) -->
+<script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/framer-motion@11.11.17/dist/framer-motion.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+
+<style>
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: #0a0f17;
+    overflow: hidden;
+  }
+  #root { height: 100%; }
+  /* Hide scrollbars but keep scroll */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .num { font-family: 'DM Mono', monospace; font-feature-settings: "tnum"; }
+  /* Loading shimmer */
+  .boot {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #1B2D4F; color: #FFF8F5; font-family: 'Fraunces', serif; font-size: 34px;
+    letter-spacing: 0.18em; z-index: 9999; transition: opacity .4s ease;
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <div class="boot" id="boot">VELA</div>
+
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo } = React;
+const { motion, AnimatePresence } = window.Motion;
+
+/* ----------------------------------------------------------------------------
+   VELA: a single-file mobile banking & investing prototype.
+   React + Tailwind + Framer Motion. No backend; all state is mocked.
+---------------------------------------------------------------------------- */
+
+/* ---------- Data ---------- */
+const FLOWERS = ['🌸', '🌺', '🌻', '🌼', '💐'];
+
+const RISKS = {
+  tortoise: { key: 'tortoise', emoji: '🐢', label: 'Tortoise', vibe: 'Play it safe', profile: 'Steady' },
+  fox:      { key: 'fox',      emoji: '🦊', label: 'Fox',      vibe: 'Balanced',     profile: 'Balanced' },
+  rocket:   { key: 'rocket',   emoji: '🚀', label: 'Rocket',   vibe: 'Go bold',      profile: 'Adventurous' },
+};
+
+const ARTICLES = {
+  investing: {
+    icon: '🌱',
+    title: 'What is investing?',
+    blurb: 'What it means to put your money to work.',
+    body: [
+      "Investing means using some of your money to buy small slices of companies and other assets that tend to grow in value over time.",
+      "Instead of sitting still in your account, your money goes to work and can earn a little more over time. That growth is the point of it.",
+      "You don't need to be rich or clever to start. SGD 50 is enough to plant your first flower. Small, regular amounts add up more than you'd think.",
+      "What matters most is starting early and staying calm. Given enough time, even small amounts can grow a long way.",
+    ],
+  },
+  risk: {
+    icon: '🦊',
+    title: 'What is risk?',
+    blurb: 'Why a balanced choice suits most beginners.',
+    body: [
+      "Risk is a word for how bumpy the ride might be. Some choices stay steady. Others move up and down a lot from one day to the next.",
+      "A steadier choice grows more slowly but feels calm. A bolder choice can grow faster, though you'll see bigger ups and downs along the way.",
+      "For most people starting out, a balanced choice in the middle tends to feel comfortable. It grows enough to matter without too many sharp swings.",
+      "Whatever you pick, the dips are normal. They happen to everyone and rarely mean you did anything wrong.",
+    ],
+  },
+  money: {
+    icon: '💸',
+    title: 'Where does my money go?',
+    blurb: 'Plain language, no jargon.',
+    body: [
+      "When you invest through Vela, your money is spread across many well-known companies and assets, so it never rides on a single bet.",
+      "Spreading it out like this is called diversifying. It just means you don't put all your eggs in one basket, which softens the bumps.",
+      "Your money is never locked away. You can take it out whenever you like, and you'll always see exactly how much you have.",
+      "Every flower in your garden stands for a real piece of your money as it grows.",
+    ],
+  },
+};
+
+/* ---------- Themes (CSS variables) ---------- */
+const THEMES = {
+  light: {
+    label: 'Light', swatch: '#FFF8F5',
+    vars: { '--bg': '#FFF8F5', '--card': '#FFFFFF', '--text': '#1C1C1C', '--subtle': '#7A8899',
+            '--navy': '#1B2D4F', '--border': '#ECE3DD', '--soft': '#FBEEE8' },
+  },
+  dark: {
+    label: 'Dark', swatch: '#0D1B2A',
+    vars: { '--bg': '#0D1B2A', '--card': '#15273C', '--text': '#FFF8F5', '--subtle': '#92A1B4',
+            '--navy': '#15273C', '--border': '#24364E', '--soft': '#1A2E45' },
+  },
+  moss: {
+    label: 'Moss', swatch: '#0E1F17',
+    vars: { '--bg': '#0E1F17', '--card': '#163022', '--text': '#EAF5EE', '--subtle': '#86AC95',
+            '--navy': '#163022', '--border': '#244A33', '--soft': '#1B3A28' },
+  },
+};
+
+/* ---------- App context ---------- */
+const AppCtx = createContext(null);
+const useApp = () => useContext(AppCtx);
+
+const fmt = (n) => n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/* ---------- Tiny UI primitives ---------- */
+
+// Glassy "3D" icon bubble approximating polished glass icons.
+function IconBubble({ children, size = 64, tone = 'coral', className = '' }) {
+  const tones = {
+    coral: 'radial-gradient(120% 120% at 30% 25%, #ffd0c4 0%, #ff8f7e 45%, #ff5a5a 100%)',
+    leaf:  'radial-gradient(120% 120% at 30% 25%, #bff0d6 0%, #6fcf9b 45%, #3fa172 100%)',
+    navy:  'radial-gradient(120% 120% at 30% 25%, #8ea7d6 0%, #3f5b8f 45%, #1B2D4F 100%)',
+    glass: 'radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.9) 0%, rgba(255,255,255,.35) 40%, rgba(255,255,255,.08) 100%)',
+  };
+  return (
+    <div
+      className={'relative grid place-items-center rounded-[28%] ' + className}
+      style={{
+        width: size, height: size, background: tones[tone] || tones.coral,
+        boxShadow: '0 10px 24px -8px rgba(27,45,79,.45), inset 0 2px 4px rgba(255,255,255,.55), inset 0 -6px 10px rgba(0,0,0,.12)',
+      }}
+    >
+      <div className="absolute left-[14%] top-[10%] h-[28%] w-[44%] rounded-full"
+           style={{ background: 'linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,0))', filter: 'blur(1px)' }} />
+      <span style={{ fontSize: size * 0.5, lineHeight: 1, filter: 'drop-shadow(0 2px 2px rgba(0,0,0,.18))' }}>{children}</span>
+    </div>
+  );
+}
+
+function Button({ children, onClick, variant = 'coral', disabled = false, className = '', type = 'button' }) {
+  const base = 'w-full min-h-[48px] rounded-xl font-medium text-[16px] flex items-center justify-center gap-2 transition active:scale-[.98] select-none';
+  const styles = {
+    coral: { className: 'text-blush shadow-[0_8px_20px_-6px_rgba(255,107,107,.6)]', style: { background: '#FF6B6B' } },
+    ghost: { className: 'text-[var(--subtle)]', style: { background: 'transparent' } },
+    navy:  { className: 'text-blush', style: { background: 'var(--navy)' } },
+    outline:{ className: 'text-coral', style: { background: 'transparent', border: '1.5px solid #FF6B6B' } },
+  }[variant];
+  return (
+    <button type={type} onClick={onClick} disabled={disabled}
+      className={base + ' ' + styles.className + ' ' + (disabled ? 'opacity-40 pointer-events-none ' : '') + className}
+      style={styles.style}>
+      {children}
+    </button>
+  );
+}
+
+function Card({ children, className = '', style = {}, onClick }) {
+  return (
+    <div onClick={onClick}
+      className={'rounded-2xl border p-4 ' + (onClick ? 'cursor-pointer active:scale-[.99] transition ' : '') + className}
+      style={{ background: 'var(--card)', borderColor: 'var(--border)', boxShadow: '0 6px 22px -10px rgba(27,45,79,.18)', ...style }}>
+      {children}
+    </div>
+  );
+}
+
+function H1({ children, className = '' }) {
+  return <h1 className={'font-serif font-semibold leading-tight tracking-tight ' + className} style={{ color: 'var(--text)' }}>{children}</h1>;
+}
+
+function ScreenHeader({ title, onBack }) {
+  return (
+    <div className="flex items-center gap-3 px-5 pt-2 pb-3">
+      {onBack && (
+        <button onClick={onBack} aria-label="Back"
+          className="grid h-10 w-10 place-items-center rounded-full"
+          style={{ background: 'var(--soft)', color: 'var(--text)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
+      )}
+      <h2 className="font-serif text-[26px] font-semibold" style={{ color: 'var(--text)' }}>{title}</h2>
+    </div>
+  );
+}
+
+/* ---------- Garden ---------- */
+function Garden({ flowers, big = false }) {
+  const items = flowers.length ? flowers : ['🌱'];
+  const sz = big ? 'text-[40px]' : 'text-[30px]';
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((f, i) => (
+        <motion.span key={i} className={sz}
+          initial={{ scale: 0, y: 8 }} animate={{ scale: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 16, delay: i * 0.05 }}
+          style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.18))' }}>{f}</motion.span>
+      ))}
+    </div>
+  );
+}
+
+function GardenTile({ onClick }) {
+  const { flowers } = useApp();
+  const count = flowers.length;
+  return (
+    <Card onClick={onClick} className="overflow-hidden" style={{ background: '#4CAF82', borderColor: 'transparent' }}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-serif text-[19px] font-semibold text-white">Your Garden</p>
+          <p className="mt-0.5 text-[13px] text-white/85">
+            {count === 0 ? 'Plant your next flower. Start with SGD 50.' : `${count} ${count === 1 ? 'bloom' : 'blooms'} and growing.`}
+          </p>
+        </div>
+        <span className="rounded-full bg-white/20 px-2.5 py-1 text-[12px] font-medium text-white">🌿 {count}</span>
+      </div>
+      <div className="mt-3 rounded-xl bg-white/15 p-3">
+        <Garden flowers={flowers} />
+      </div>
+    </Card>
+  );
+}
+
+/* ---------- Confetti ---------- */
+function Confetti({ run }) {
+  const pieces = useMemo(() => Array.from({ length: 28 }).map((_, i) => ({
+    id: i,
+    x: (Math.random() * 2 - 1) * 150,
+    rot: Math.random() * 540 - 270,
+    delay: Math.random() * 0.25,
+    color: Math.random() > 0.5 ? '#FF6B6B' : '#4CAF82',
+    size: 7 + Math.random() * 8,
+    round: Math.random() > 0.5,
+  })), []);
+  if (!run) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {pieces.map((p) => (
+        <motion.div key={p.id}
+          className="absolute left-1/2 top-[38%]"
+          initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
+          animate={{ x: p.x, y: 360, opacity: [1, 1, 0], rotate: p.rot }}
+          transition={{ duration: 1.5, delay: p.delay, ease: 'easeOut' }}
+          style={{ width: p.size, height: p.size, background: p.color, borderRadius: p.round ? '50%' : '2px' }} />
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Bottom navigation ---------- */
+const TABS = [
+  { key: 'home',   icon: '🏠', label: 'Home' },
+  { key: 'save',   icon: '💰', label: 'Save' },
+  { key: 'invest', icon: '🌸', label: 'Invest' },
+  { key: 'learn',  icon: '📖', label: 'Learn' },
+  { key: 'settings', icon: '👤', label: 'You' },
+];
+
+function BottomNav() {
+  const { current, goTab } = useApp();
+  return (
+    <div className="absolute bottom-0 left-0 right-0 z-30"
+      style={{ background: 'var(--navy)', boxShadow: '0 -8px 24px -12px rgba(0,0,0,.4)' }}>
+      <div className="mx-auto grid max-w-[420px] grid-cols-5 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
+        {TABS.map((t) => {
+          const active = current.tab === t.key;
+          return (
+            <button key={t.key} onClick={() => goTab(t.key)}
+              className="flex flex-col items-center gap-0.5 py-1.5">
+              <span className="text-[20px] transition" style={{ filter: active ? 'none' : 'grayscale(.4)', transform: active ? 'translateY(-1px) scale(1.08)' : 'none' }}>{t.icon}</span>
+              <span className="text-[10px] font-medium" style={{ color: active ? '#FF6B6B' : '#7A8899' }}>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ======================================================================
+   SCREENS
+====================================================================== */
+
+/* ---- Onboarding ---- */
+function Splash() {
+  const { navigate } = useApp();
+  useEffect(() => { const t = setTimeout(() => navigate('welcome', 1), 2000); return () => clearTimeout(t); }, []);
+  return (
+    <div className="flex h-full flex-col items-center justify-center" style={{ background: '#1B2D4F' }}>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+        className="flex flex-col items-center">
+        <span className="font-serif text-[58px] font-semibold tracking-[0.14em] text-blush">VELA</span>
+        <motion.div className="mt-2 h-[3px] rounded-full bg-coral"
+          initial={{ width: 0 }} animate={{ width: 132 }} transition={{ duration: 0.9, delay: 0.4, ease: 'easeOut' }} />
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
+          className="mt-5 text-[15px] text-blush/75">Your money, moving.</motion.p>
+      </motion.div>
+    </div>
+  );
+}
+
+function Welcome() {
+  const { navigate } = useApp();
+  return (
+    <div className="flex h-full flex-col px-6 pb-8 pt-16" style={{ background: 'var(--bg)' }}>
+      <div className="flex flex-1 flex-col items-center justify-center text-center">
+        <div className="mb-8 flex items-end gap-2">
+          <span className="text-[44px]">🌱</span><span className="text-[56px]">🌸</span><span className="text-[40px]">🌻</span>
+        </div>
+        <H1 className="text-[34px]">Investing without<br/>the headache.</H1>
+        <p className="mt-4 max-w-[280px] text-[15px]" style={{ color: 'var(--subtle)' }}>
+          No jargon and no pressure. Just a simpler way to start growing your money.
+        </p>
+      </div>
+      <Button onClick={() => navigate('risk', 1)}>Get Started</Button>
+    </div>
+  );
+}
+
+function RiskQuestion({ retake = false }) {
+  const { navigate, back, risk, setRisk } = useApp();
+  const [sel, setSel] = useState(retake ? risk : null);
+  return (
+    <div className="flex h-full flex-col px-6 pb-8 pt-14" style={{ background: 'var(--bg)' }}>
+      {retake && (
+        <button onClick={back} className="mb-3 self-start text-[14px]" style={{ color: 'var(--subtle)' }}>← Back</button>
+      )}
+      <H1 className="text-[28px]">What's your vibe with<br/>money right now?</H1>
+      <p className="mt-2 text-[14px]" style={{ color: 'var(--subtle)' }}>Pick the one that feels like you. No wrong answers.</p>
+      <div className="mt-6 flex flex-1 flex-col gap-3">
+        {Object.values(RISKS).map((r) => {
+          const on = sel === r.key;
+          return (
+            <motion.button key={r.key} onClick={() => setSel(r.key)} animate={{ scale: on ? 1.02 : 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              className="flex items-center gap-4 rounded-2xl p-4 text-left"
+              style={{ background: 'var(--card)', border: on ? '2px solid #FF6B6B' : '1px solid var(--border)',
+                       boxShadow: on ? '0 10px 26px -10px rgba(255,107,107,.5)' : '0 6px 18px -12px rgba(27,45,79,.3)' }}>
+              <IconBubble size={56} tone={on ? 'coral' : 'glass'}>{r.emoji}</IconBubble>
+              <div>
+                <p className="font-serif text-[19px] font-semibold" style={{ color: 'var(--text)' }}>{r.label}</p>
+                <p className="text-[13px]" style={{ color: 'var(--subtle)' }}>{r.vibe}</p>
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+      <Button disabled={!sel} onClick={() => { setRisk(sel); retake ? back() : navigate('name', 1); }}>
+        This is me
+      </Button>
+    </div>
+  );
+}
+
+function NameInput() {
+  const { navigate, name, setName } = useApp();
+  const [val, setVal] = useState(name === 'Maya' ? '' : name);
+  const [focus, setFocus] = useState(false);
+  const submit = () => { setName(val.trim() || 'Maya'); navigate('gardenIntro', 1); };
+  return (
+    <div className="flex h-full flex-col px-6 pb-8 pt-20" style={{ background: 'var(--bg)' }}>
+      <div className="flex flex-1 flex-col">
+        <H1 className="text-[30px]">What should we<br/>call you?</H1>
+        <p className="mt-3 text-[14px]" style={{ color: 'var(--subtle)' }}>Just a first name is perfect.</p>
+        <input
+          autoFocus value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="Your name"
+          className="mt-8 w-full rounded-xl px-4 py-4 text-[18px] outline-none"
+          style={{ background: 'var(--card)', color: 'var(--text)',
+                   border: focus ? '2px solid #FF6B6B' : '1px solid var(--border)' }} />
+      </div>
+      <Button onClick={submit}>Let's go →</Button>
+    </div>
+  );
+}
+
+function GardenIntro() {
+  const { finishOnboarding } = useApp();
+  return (
+    <div className="flex h-full flex-col px-6 pb-8 pt-16 text-center" style={{ background: '#4CAF82' }}>
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 14 }}
+          className="mb-6 grid h-28 w-28 place-items-center rounded-3xl bg-white/20">
+          <span className="text-[64px]" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,.2))' }}>🌱</span>
+        </motion.div>
+        <h1 className="font-serif text-[34px] font-semibold text-white">Meet your garden.</h1>
+        <p className="mt-4 max-w-[290px] text-[15px] leading-relaxed text-white/90">
+          Every time you invest, a new flower blooms. The more you put in over time, the more your garden grows.
+        </p>
+      </div>
+      <Button variant="navy" onClick={finishOnboarding}>Start growing</Button>
+    </div>
+  );
+}
+
+/* ---- Home ---- */
+function Home() {
+  const { name, balance, navigate, goTab } = useApp();
+  const [bell, setBell] = useState(false);
+  return (
+    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+      {/* Top bar */}
+      <div className="px-5 pb-6 pt-12" style={{ background: 'var(--navy)', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[13px] text-blush/60">Welcome back</p>
+            <p className="font-serif text-[24px] font-semibold text-blush">Hi {name} 👋</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setBell(true)} aria-label="Notifications"
+              className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10">
+              <span className="text-[18px]">🔔</span>
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-coral" />
+            </button>
+            <button onClick={() => goTab('settings')} aria-label="Profile"
+              className="grid h-10 w-10 place-items-center rounded-full bg-coral text-[15px] font-semibold text-blush">
+              {name.charAt(0).toUpperCase()}
+            </button>
+          </div>
+        </div>
+
+        {/* Balance card */}
+        <div className="mt-5 rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)' }}>
+          <p className="text-[13px] text-blush/55">Your balance</p>
+          <p className="num mt-1 text-[34px] font-medium text-blush">
+            <span className="text-[18px] align-top text-blush/60">SGD </span>{fmt(balance)}
+          </p>
+          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-leaf/20 px-2 py-0.5 text-[12px] font-medium text-leaf">
+            ↑ +2.4% this month
+          </p>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="space-y-4 px-5 pt-5">
+        <GardenTile onClick={() => goTab('invest')} />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Card onClick={() => goTab('save')} className="flex flex-col items-start gap-2">
+            <IconBubble size={44} tone="coral">💰</IconBubble>
+            <div>
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Save</p>
+              <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Build your pot</p>
+            </div>
+          </Card>
+          <Card onClick={() => goTab('invest')} className="flex flex-col items-start gap-2">
+            <IconBubble size={44} tone="leaf">🌸</IconBubble>
+            <div>
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Invest</p>
+              <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Plant a flower</p>
+            </div>
+          </Card>
+        </div>
+
+        <Card onClick={() => goTab('learn')} className="flex items-center gap-3">
+          <IconBubble size={44} tone="navy">📖</IconBubble>
+          <div className="flex-1">
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Learn the basics</p>
+            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Money basics in plain language.</p>
+          </div>
+          <span style={{ color: 'var(--subtle)' }}>→</span>
+        </Card>
+      </div>
+
+      <AnimatePresence>
+        {bell && <Toast onDone={() => setBell(false)}>You're all caught up. No new alerts 🎉</Toast>}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Toast({ children, onDone }) {
+  useEffect(() => { const t = setTimeout(onDone, 2200); return () => clearTimeout(t); }, []);
+  return (
+    <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+      className="absolute bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-full px-4 py-2.5 text-[13px] text-blush"
+      style={{ background: '#1B2D4F', boxShadow: '0 10px 30px -8px rgba(0,0,0,.5)' }}>
+      {children}
+    </motion.div>
+  );
+}
+
+/* ---- Save flow ---- */
+function SaveHome() {
+  const { savings, navigate } = useApp();
+  return (
+    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="Save" />
+      <div className="space-y-4 px-5">
+        <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Set money aside for whatever's next. You can take it out whenever you need to.</p>
+
+        <Card className="overflow-hidden" style={{ background: '#1B2D4F', borderColor: 'transparent' }}>
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] text-blush/60">Savings Pot</p>
+            <IconBubble size={40} tone="navy">🫙</IconBubble>
+          </div>
+          <p className="num mt-2 text-[30px] font-medium text-blush">
+            <span className="text-[15px] text-blush/55">SGD </span>{fmt(savings)}
+          </p>
+          <p className="mt-1 text-[12px] text-blush/55">Ready whenever you need it.</p>
+        </Card>
+
+        <Card className="flex items-center gap-3" style={{ border: '1.5px dashed #FF6B6B' }}>
+          <IconBubble size={44} tone="coral">🎯</IconBubble>
+          <div className="flex-1">
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Set a Goal</p>
+            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>A trip? A rainy day? Name it and grow it.</p>
+          </div>
+          <span className="text-coral text-[20px]">＋</span>
+        </Card>
+      </div>
+      <div className="px-5 pt-5">
+        <Button onClick={() => navigate('addMoney', 1)}>Add Money</Button>
+      </div>
+    </div>
+  );
+}
+
+function AddMoney() {
+  const { back, navigate, addToSavings } = useApp();
+  const [amt, setAmt] = useState('');
+  const presets = [20, 50, 100];
+  const valid = Number(amt) > 0;
+  const submit = () => { if (!valid) return; addToSavings(Number(amt)); navigate('saveConfirm', 1, { amt: Number(amt) }); };
+  return (
+    <div className="flex h-full flex-col pb-28" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="Add Money" onBack={back} />
+      <div className="flex flex-1 flex-col px-6">
+        <p className="text-[15px]" style={{ color: 'var(--text)' }}>How much do you want to save?</p>
+        <div className="mt-5 flex items-center gap-2 rounded-xl px-4 py-4"
+          style={{ background: 'var(--card)', border: '2px solid #FF6B6B' }}>
+          <span className="num text-[22px]" style={{ color: 'var(--subtle)' }}>SGD</span>
+          <input inputMode="decimal" autoFocus value={amt}
+            onChange={(e) => setAmt(e.target.value.replace(/[^0-9.]/g, ''))}
+            placeholder="0.00"
+            className="num w-full bg-transparent text-[28px] outline-none"
+            style={{ color: 'var(--text)' }} />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2.5">
+          {presets.map((p) => (
+            <button key={p} onClick={() => setAmt(String(p))}
+              className="num rounded-xl py-3 text-[15px] font-medium transition active:scale-95"
+              style={{ background: Number(amt) === p ? '#FF6B6B' : 'var(--card)',
+                       color: Number(amt) === p ? '#FFF8F5' : 'var(--text)',
+                       border: '1px solid var(--border)' }}>
+              SGD {p}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="px-6">
+        <Button disabled={!valid} onClick={submit}>Save now</Button>
+      </div>
+    </div>
+  );
+}
+
+function SaveConfirm({ amt }) {
+  const { goTab } = useApp();
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-8 text-center" style={{ background: '#4CAF82' }}>
+      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 14 }}
+        className="grid h-24 w-24 place-items-center rounded-full bg-white/20">
+        <span className="text-[56px]">✅</span>
+      </motion.div>
+      <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+        className="mt-6 font-serif text-[34px] font-semibold text-white">SGD {fmt(amt || 0)} saved.</motion.h1>
+      <p className="mt-2 text-[15px] text-white/85">Every bit counts.</p>
+      <div className="mt-10 w-full">
+        <Button variant="navy" onClick={() => goTab('home')}>Back to Home</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Invest flow ---- */
+function InvestHome() {
+  const { flowers, navigate } = useApp();
+  return (
+    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="Invest" />
+      <div className="space-y-4 px-5">
+        <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Each investment plants a new flower in your garden.</p>
+        <Card className="overflow-hidden" style={{ background: '#4CAF82', borderColor: 'transparent' }}>
+          <p className="font-serif text-[19px] font-semibold text-white">Your Garden</p>
+          <p className="mt-0.5 text-[13px] text-white/85">
+            {flowers.length === 0 ? 'Still just a seed, ready to bloom.' : `${flowers.length} ${flowers.length === 1 ? 'flower' : 'flowers'} so far. Keep going!`}
+          </p>
+          <div className="mt-3 rounded-xl bg-white/15 p-4">
+            <Garden flowers={flowers} big />
+          </div>
+        </Card>
+        <Card className="flex items-center gap-3">
+          <IconBubble size={44} tone="leaf">🌸</IconBubble>
+          <div className="flex-1">
+            <p className="text-[13px]" style={{ color: 'var(--subtle)' }}>Take your money out whenever you want.</p>
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Plant a new flower</p>
+          </div>
+        </Card>
+      </div>
+      <div className="px-5 pt-5">
+        <Button onClick={() => navigate('investConfirm', 1)}>Plant a flower for SGD 50</Button>
+      </div>
+    </div>
+  );
+}
+
+function InvestConfirm() {
+  const { back, risk, plantFlower, navigate } = useApp();
+  const r = RISKS[risk];
+  const confirm = () => { plantFlower(); navigate('investSuccess', 1); };
+  return (
+    <div className="flex h-full flex-col pb-8" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="" onBack={back} />
+      <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
+        <IconBubble size={76} tone="leaf">🌸</IconBubble>
+        <H1 className="mt-6 text-[26px]">You are investing<br/>SGD 50.</H1>
+
+        <div className="mt-6 flex w-full items-center gap-3 rounded-2xl p-3.5"
+          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <IconBubble size={46} tone="glass">{r.emoji}</IconBubble>
+          <div className="text-left">
+            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Your style</p>
+            <p className="font-serif text-[17px] font-semibold" style={{ color: 'var(--text)' }}>{r.label} · {r.profile}</p>
+          </div>
+        </div>
+
+        <p className="mt-5 text-[13px]" style={{ color: 'var(--subtle)' }}>
+          You can take your money out whenever you want.
+        </p>
+      </div>
+      <div className="space-y-2 px-7">
+        <Button onClick={confirm}>Confirm</Button>
+        <Button variant="ghost" onClick={back}>Not now</Button>
+      </div>
+    </div>
+  );
+}
+
+function InvestSuccess() {
+  const { flowers, goTab } = useApp();
+  const newFlower = flowers[flowers.length - 1] || '🌸';
+  const [stage, setStage] = useState(0); // 0 navy, 1 garden up, 2 bloom+confetti
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage(1), 250);
+    const t2 = setTimeout(() => setStage(2), 750);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div className="relative flex h-full flex-col overflow-hidden" style={{ background: '#0D1B2A' }}>
+      <Confetti run={stage >= 2} />
+
+      <div className="flex flex-1 flex-col items-center justify-end px-7 pb-6">
+        {/* garden rises from bottom */}
+        <motion.div initial={{ y: 260, opacity: 0 }} animate={{ y: stage >= 1 ? 0 : 260, opacity: stage >= 1 ? 1 : 0 }}
+          transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+          className="mb-8 w-full rounded-3xl p-6" style={{ background: '#4CAF82' }}>
+          <div className="flex flex-wrap items-end gap-2">
+            {flowers.slice(0, -1).map((f, i) => (
+              <span key={i} className="text-[34px]" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.2))' }}>{f}</span>
+            ))}
+            <motion.span className="text-[50px]"
+              initial={{ scale: 0 }} animate={{ scale: stage >= 2 ? 1 : 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 12, duration: 0.6 }}
+              style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,.25))' }}>{newFlower}</motion.span>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: stage >= 2 ? 1 : 0, y: stage >= 2 ? 0 : 16 }}
+        transition={{ delay: 0.15 }}
+        className="px-7 pb-8 text-center">
+        <h1 className="font-serif text-[34px] font-semibold text-blush">Your first bloom.</h1>
+        <p className="mx-auto mt-3 max-w-[290px] text-[15px] text-blush/75">
+          SGD 50 invested. Your future just got a little bigger.
+        </p>
+        <div className="mt-7">
+          <Button onClick={() => goTab('home')}>See my garden</Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ---- Learn flow ---- */
+function LearnHome() {
+  const { navigate } = useApp();
+  return (
+    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="Learn" />
+      <div className="space-y-3 px-5">
+        <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Three short reads, in plain language.</p>
+        {Object.values(ARTICLES).map((a) => (
+          <Card key={a.title} onClick={() => navigate('learnArticle', 1, { id: a.title })} className="flex items-center gap-3">
+            <IconBubble size={50} tone="glass">{a.icon}</IconBubble>
+            <div className="flex-1">
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{a.title}</p>
+              <p className="text-[12.5px]" style={{ color: 'var(--subtle)' }}>{a.blurb}</p>
+            </div>
+            <span style={{ color: 'var(--subtle)' }}>→</span>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LearnArticle({ id }) {
+  const { back } = useApp();
+  const a = Object.values(ARTICLES).find((x) => x.title === id) || ARTICLES.investing;
+  return (
+    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="" onBack={back} />
+      <div className="px-6">
+        <IconBubble size={84} tone="glass">{a.icon}</IconBubble>
+        <h1 className="mt-5 font-serif text-[30px] font-semibold leading-tight" style={{ color: 'var(--text)' }}>{a.title}</h1>
+        <div className="mt-4 space-y-4">
+          {a.body.map((p, i) => (
+            <p key={i} className="text-[15px] leading-relaxed" style={{ color: 'var(--text)' }}>{p}</p>
+          ))}
+        </div>
+        <div className="mt-8">
+          <Button variant="outline" onClick={back}>Got it</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Settings ---- */
+function Settings() {
+  const { theme, setTheme, name, setName, risk, navigate } = useApp();
+  const [editing, setEditing] = useState(false);
+  const [tmp, setTmp] = useState(name);
+  const r = RISKS[risk];
+  return (
+    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="You" />
+      <div className="space-y-4 px-5">
+        {/* Theme */}
+        <Card>
+          <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Theme</p>
+          <div className="mt-3 grid grid-cols-3 gap-2.5">
+            {Object.entries(THEMES).map(([key, t]) => {
+              const on = theme === key;
+              return (
+                <button key={key} onClick={() => setTheme(key)}
+                  className="flex flex-col items-center gap-2 rounded-xl py-3 transition"
+                  style={{ border: on ? '2px solid #FF6B6B' : '1px solid var(--border)', background: 'var(--soft)' }}>
+                  <span className="h-7 w-7 rounded-full" style={{ background: t.swatch, border: '1px solid rgba(0,0,0,.1)' }} />
+                  <span className="text-[12px] font-medium" style={{ color: 'var(--text)' }}>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Display name */}
+        <Card>
+          <div className="flex items-center justify-between">
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Display name</p>
+            {!editing && <button onClick={() => { setTmp(name); setEditing(true); }} className="text-[13px] text-coral font-medium">Edit</button>}
+          </div>
+          {editing ? (
+            <div className="mt-3 flex gap-2">
+              <input autoFocus value={tmp} onChange={(e) => setTmp(e.target.value)}
+                className="num flex-1 rounded-lg px-3 py-2 text-[15px] outline-none"
+                style={{ background: 'var(--soft)', color: 'var(--text)', border: '1px solid var(--border)' }} />
+              <button onClick={() => { setName(tmp.trim() || name); setEditing(false); }}
+                className="rounded-lg bg-coral px-4 text-[14px] font-medium text-blush">Save</button>
+            </div>
+          ) : (
+            <p className="mt-1 text-[15px]" style={{ color: 'var(--subtle)' }}>{name}</p>
+          )}
+        </Card>
+
+        {/* Risk profile */}
+        <Card className="flex items-center gap-3">
+          <IconBubble size={48} tone="glass">{r.emoji}</IconBubble>
+          <div className="flex-1">
+            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Your money style</p>
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{r.label} · {r.profile}</p>
+          </div>
+          <button onClick={() => navigate('retakeRisk', 1)} className="rounded-full px-3 py-1.5 text-[13px] font-medium text-coral"
+            style={{ border: '1px solid #FF6B6B' }}>Retake</button>
+        </Card>
+
+        {/* About */}
+        <Card>
+          <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>About VELA</p>
+          <p className="mt-1.5 text-[14px] leading-relaxed" style={{ color: 'var(--subtle)' }}>
+            Vela is a simpler way to save and invest your first salary, without the jargon or pressure.
+          </p>
+          <p className="mt-3 font-serif text-[15px] italic" style={{ color: '#FF6B6B' }}>"Your money, moving."</p>
+          <p className="mt-2 text-[12px]" style={{ color: 'var(--subtle)' }}>Prototype · v1.0</p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ======================================================================
+   ROUTER / APP SHELL
+====================================================================== */
+
+// Which tab a screen belongs to (drives bottom nav highlight & presence).
+const SCREEN_TAB = {
+  home: 'home',
+  save: 'save', addMoney: 'save', saveConfirm: 'save',
+  invest: 'invest', investConfirm: 'invest', investSuccess: 'invest',
+  learn: 'learn', learnArticle: 'learn',
+  settings: 'settings', retakeRisk: 'settings',
+};
+const ONBOARDING = ['splash', 'welcome', 'risk', 'name', 'gardenIntro'];
+
+function renderScreen(screen, params) {
+  switch (screen) {
+    case 'splash': return <Splash />;
+    case 'welcome': return <Welcome />;
+    case 'risk': return <RiskQuestion />;
+    case 'retakeRisk': return <RiskQuestion retake />;
+    case 'name': return <NameInput />;
+    case 'gardenIntro': return <GardenIntro />;
+    case 'home': return <Home />;
+    case 'save': return <SaveHome />;
+    case 'addMoney': return <AddMoney />;
+    case 'saveConfirm': return <SaveConfirm amt={params.amt} />;
+    case 'invest': return <InvestHome />;
+    case 'investConfirm': return <InvestConfirm />;
+    case 'investSuccess': return <InvestSuccess />;
+    case 'learn': return <LearnHome />;
+    case 'learnArticle': return <LearnArticle id={params.id} />;
+    case 'settings': return <Settings />;
+    default: return <Home />;
+  }
+}
+
+function App() {
+  // Persistent app state (mocked demo data)
+  const [name, setName] = useState('Maya');
+  const [balance] = useState(1240.0);
+  const [savings, setSavings] = useState(320.0);
+  const [risk, setRisk] = useState('fox');
+  const [flowers, setFlowers] = useState([]); // start: garden has only a seed
+  const [theme, setTheme] = useState('light');
+
+  // Navigation stack
+  const [stack, setStack] = useState([{ screen: 'splash', params: {} }]);
+  const [dir, setDir] = useState(1);
+
+  const current = stack[stack.length - 1];
+  const tab = SCREEN_TAB[current.screen] || null;
+  const showNav = tab !== null && !ONBOARDING.includes(current.screen);
+
+  const navigate = useCallback((screen, direction = 1, params = {}) => {
+    setDir(direction);
+    setStack((s) => [...s, { screen, params }]);
+  }, []);
+  const back = useCallback(() => {
+    setDir(-1);
+    setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
+  }, []);
+  const goTab = useCallback((tabKey) => {
+    setDir(1);
+    setStack([{ screen: tabKey, params: {} }]);
+  }, []);
+  const finishOnboarding = useCallback(() => { setDir(1); setStack([{ screen: 'home', params: {} }]); }, []);
+
+  const addToSavings = useCallback((amt) => setSavings((s) => s + amt), []);
+  const plantFlower = useCallback(() => setFlowers((f) => [...f, FLOWERS[f.length % FLOWERS.length]]), []);
+
+  const ctx = {
+    name, setName, balance, savings, addToSavings, risk, setRisk, flowers, plantFlower,
+    theme, setTheme, current: { ...current, tab },
+    navigate, back, goTab, finishOnboarding,
+  };
+
+  const variants = {
+    enter: (d) => ({ x: d > 0 ? '100%' : '-100%', opacity: 0.6 }),
+    center: { x: 0, opacity: 1 },
+    exit: (d) => ({ x: d > 0 ? '-30%' : '30%', opacity: 0 }),
+  };
+
+  return (
+    <AppCtx.Provider value={ctx}>
+      <div className="flex h-full w-full items-center justify-center" style={{ background: '#0a0f17' }}>
+        {/* Phone frame */}
+        <div className="relative h-[100dvh] w-full max-w-[420px] overflow-hidden"
+          style={{ ...THEMES[theme].vars, background: 'var(--bg)' }}>
+          <AnimatePresence custom={dir} mode="wait" initial={false}>
+            <motion.div key={current.screen + JSON.stringify(current.params)}
+              custom={dir} variants={variants} initial="enter" animate="center" exit="exit"
+              transition={{ type: 'tween', duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute inset-0">
+              {renderScreen(current.screen, current.params)}
+            </motion.div>
+          </AnimatePresence>
+
+          {showNav && <BottomNav />}
+        </div>
+      </div>
+    </AppCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// remove boot splash once React paints
+requestAnimationFrame(() => {
+  const b = document.getElementById('boot');
+  if (b) { b.style.opacity = '0'; setTimeout(() => b.remove(), 400); }
+});
+  </script>
+</body>
+</html>
