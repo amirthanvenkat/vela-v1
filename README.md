@@ -5,11 +5,26 @@
 A mobile-web banking and investing prototype for young people getting their first salary.
 It is built to be opened on a phone (375px / iPhone viewport) and shared as a single HTML link.
 
+**Live demo: https://amirthanvenkat.github.io/vela-v1/**
+
+Open that link on your phone for the intended experience. To use it like an app, open your
+browser menu and choose "Add to Home Screen"; it will launch full screen from its own icon.
+
+| Home | First investment | Your garden |
+|---|---|---|
+| ![Home dashboard](docs/screenshots/04-home.png) | ![First bloom success screen](docs/screenshots/08-invest-success.png) | ![Garden introduction](docs/screenshots/03-garden-intro.png) |
+
+Want to see how it feels to use? Read [Maya's user story](docs/user-story-maya.md), a
+screen-by-screen walkthrough from the point of view of a first-salary user.
+
 ## How to open
 
 Open **`index.html`** in any modern browser. That single file is the whole app. There is no
 build step, no install, and no backend. You can drag it onto a browser tab, or host the one
 file anywhere (GitHub Pages, Netlify drop, S3, and so on) and share the link.
+
+The app loads React, Tailwind, Framer Motion, and its fonts from public CDNs, so it needs an
+internet connection the first time a browser opens it.
 
 On desktop it renders inside a centred phone frame. On a phone it fills the screen.
 
@@ -53,6 +68,9 @@ Maya, SGD 1,240.00 balance, Fox (Balanced) risk choice, a one-seed garden, and S
 - The "3D glass" icons are approximated with glossy gradient bubbles wrapping an emoji.
 - The bottom navigation has 5 icons (Home, Save, Invest, Learn, You), with "You" opening Settings.
 - The copy avoids financial jargon. Where a term is needed, it is followed by a plain-language line.
+- Any screen can be opened directly with a hash deep link, which is how the docs screenshots
+  are captured. For example `#screen=home`, `#screen=investSuccess&flowers=1`, or
+  `#screen=settings&theme=dark`.
 
 ## Moving to a Vite project later
 

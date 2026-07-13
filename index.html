@@ -681,19 +681,20 @@ function InvestConfirm() {
 function InvestSuccess() {
   const { flowers, goTab } = useApp();
   const newFlower = flowers[flowers.length - 1] || '🌸';
-  const [stage, setStage] = useState(0); // 0 navy, 1 garden up, 2 bloom+confetti
+  const [stage, setStage] = useState(INSTANT ? 2 : 0); // 0 navy, 1 garden up, 2 bloom+confetti
   useEffect(() => {
+    if (INSTANT) return;
     const t1 = setTimeout(() => setStage(1), 250);
     const t2 = setTimeout(() => setStage(2), 750);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
   return (
     <div className="relative flex h-full flex-col overflow-hidden" style={{ background: '#0D1B2A' }}>
-      <Confetti run={stage >= 2} />
+      <Confetti run={stage >= 2 && !INSTANT} />
 
       <div className="flex flex-1 flex-col items-center justify-end px-7 pb-6">
         {/* garden rises from bottom */}
-        <motion.div initial={{ y: 260, opacity: 0 }} animate={{ y: stage >= 1 ? 0 : 260, opacity: stage >= 1 ? 1 : 0 }}
+        <motion.div initial={INSTANT ? false : { y: 260, opacity: 0 }} animate={{ y: stage >= 1 ? 0 : 260, opacity: stage >= 1 ? 1 : 0 }}
           transition={{ type: 'spring', stiffness: 120, damping: 18 }}
           className="mb-8 w-full rounded-3xl p-6" style={{ background: '#4CAF82' }}>
           <div className="flex flex-wrap items-end gap-2">
@@ -701,14 +702,14 @@ function InvestSuccess() {
               <span key={i} className="text-[34px]" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.2))' }}>{f}</span>
             ))}
             <motion.span className="text-[50px]"
-              initial={{ scale: 0 }} animate={{ scale: stage >= 2 ? 1 : 0 }}
+              initial={INSTANT ? false : { scale: 0 }} animate={{ scale: stage >= 2 ? 1 : 0 }}
               transition={{ type: 'spring', stiffness: 260, damping: 12, duration: 0.6 }}
               style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,.25))' }}>{newFlower}</motion.span>
           </div>
         </motion.div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: stage >= 2 ? 1 : 0, y: stage >= 2 ? 0 : 16 }}
+      <motion.div initial={INSTANT ? false : { opacity: 0, y: 16 }} animate={{ opacity: stage >= 2 ? 1 : 0, y: stage >= 2 ? 0 : 16 }}
         transition={{ delay: 0.15 }}
         className="px-7 pb-8 text-center">
         <h1 className="font-serif text-[34px] font-semibold text-blush">{flowers.length === 1 ? 'Your first bloom.' : 'Another bloom!'}</h1>
@@ -856,6 +857,19 @@ const ONBOARDING = ['splash', 'welcome', 'risk', 'name', 'gardenIntro'];
 // Modal-style flow screens: they own the full height (their own back/exit CTA), no bottom nav.
 const NAV_HIDDEN = ['addMoney', 'saveConfirm', 'investConfirm', 'investSuccess', 'retakeRisk'];
 
+// Optional deep links for demos and docs screenshots, e.g. #screen=investSuccess&flowers=1
+const BOOT = (() => {
+  const p = {};
+  window.location.hash.replace(/^#/, '').split('&').forEach((kv) => {
+    const [k, v] = kv.split('=');
+    if (k) p[k] = decodeURIComponent(v || '');
+  });
+  return p;
+})();
+const BOOT_SCREEN = (BOOT.screen && (SCREEN_TAB[BOOT.screen] || ONBOARDING.includes(BOOT.screen))) ? BOOT.screen : null;
+// Deep-linked boots render their end state at once (used for docs screenshots).
+const INSTANT = !!BOOT_SCREEN;
+
 function renderScreen(screen, params) {
   switch (screen) {
     case 'splash': return <Splash />;
@@ -879,16 +893,16 @@ function renderScreen(screen, params) {
 }
 
 function App() {
-  // Persistent app state (mocked demo data)
-  const [name, setName] = useState('Maya');
+  // Persistent app state (mocked demo data, optionally seeded via BOOT deep link)
+  const [name, setName] = useState(BOOT.name || 'Maya');
   const [balance, setBalance] = useState(1240.0);
   const [savings, setSavings] = useState(320.0);
-  const [risk, setRisk] = useState('fox');
-  const [flowers, setFlowers] = useState([]); // start: garden has only a seed
-  const [theme, setTheme] = useState('light');
+  const [risk, setRisk] = useState(RISKS[BOOT.risk] ? BOOT.risk : 'fox');
+  const [flowers, setFlowers] = useState(FLOWERS.slice(0, parseInt(BOOT.flowers, 10) || 0));
+  const [theme, setTheme] = useState(THEMES[BOOT.theme] ? BOOT.theme : 'light');
 
   // Navigation stack
-  const [stack, setStack] = useState([{ screen: 'splash', params: {} }]);
+  const [stack, setStack] = useState([{ screen: BOOT_SCREEN || 'splash', params: { amt: Number(BOOT.amt) || undefined, id: BOOT.id } }]);
   const [dir, setDir] = useState(1);
 
   const current = stack[stack.length - 1];
