@@ -436,6 +436,18 @@ function Toast({ children, onDone }) {
 // Rendered into the screen-level overlay layer so it sits above the bottom nav.
 function Sheet({ title, onClose, children }) {
   const { overlayEl } = useApp();
+  // Captured during render, before the Close button's autoFocus moves focus into the sheet.
+  const [opener] = useState(() => document.activeElement);
+  // Modal: make everything behind the sheet inert, then hand focus back to the opener on close.
+  useEffect(() => {
+    if (!overlayEl) return;
+    const behind = [...overlayEl.parentElement.children].filter((el) => el !== overlayEl);
+    behind.forEach((el) => el.setAttribute('inert', ''));
+    return () => {
+      behind.forEach((el) => el.removeAttribute('inert'));
+      if (opener && opener.focus) opener.focus();
+    };
+  }, [overlayEl]);
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -749,7 +761,7 @@ function AddMoney() {
   const n = Number(amt);
   const tooMuch = n > balance;
   const valid = n > 0 && !tooMuch;
-  const submit = () => { if (!valid) return; addToSavings(n); navigate('saveConfirm', 1, { amt: n }); };
+  const submit = () => { if (!valid) return; addToSavings(n); navigate('saveConfirm', 1, { amt: n }, { replace: true }); };
   return (
     <div className="flex h-full flex-col pb-safe" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Add Money" onBack={back} />
@@ -856,7 +868,7 @@ function InvestConfirm() {
   const tooLittle = n > 0 && n < MIN_INVEST;
   const tooMuch = n > balance;
   const valid = n >= MIN_INVEST && !tooMuch;
-  const confirm = () => { if (!valid) return; plantFlower(n); navigate('investSuccess', 1, { amt: n }); };
+  const confirm = () => { if (!valid) return; plantFlower(n); navigate('investSuccess', 1, { amt: n }, { replace: true }); };
   return (
     <div className="flex h-full flex-col pb-safe" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Plant a flower" onBack={back} />
@@ -1322,8 +1334,10 @@ function App() {
   const tab = SCREEN_TAB[current.screen] || null;
   const showNav = tab !== null && !ONBOARDING.includes(current.screen) && !NAV_HIDDEN.includes(current.screen);
 
-  const navigate = useCallback((screen, direction = 1, params = {}) => {
-    commit([...stackRef.current, { screen, params }], direction);
+  // { replace: true } swaps out the current screen (used after a confirm step, so Back can't resubmit it).
+  const navigate = useCallback((screen, direction = 1, params = {}, { replace = false } = {}) => {
+    const base = replace ? stackRef.current.slice(0, -1) : stackRef.current;
+    commit([...base, { screen, params }], direction, replace ? 'replace' : 'push');
   }, [commit]);
   const back = useCallback(() => {
     const s = stackRef.current;
