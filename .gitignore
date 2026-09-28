@@ -6,3 +6,7 @@ desktop.ini
 
 # Local preview server output
 *.output
+node_modules/
+dist/
+playwright-report/
+test-results/

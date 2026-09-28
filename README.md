@@ -3,7 +3,7 @@
 *Your money, moving.*
 
 A mobile-web banking and investing prototype for young people getting their first salary.
-It is built to be opened on a phone (375px / iPhone viewport) and shared as a single HTML link.
+It is built to be opened on a phone (375px / iPhone viewport) and shared as a single link.
 
 **Live demo: https://amirthanvenkat.github.io/vela-v1/**
 
@@ -20,37 +20,62 @@ On a laptop or desktop it opens inside an iPhone-style frame:
 Want to see how it feels to use? Read [Maya's user story](docs/user-story-maya.md), a
 screen-by-screen walkthrough from the point of view of a first-salary user.
 
-## How to open
+## Running it locally
 
-Open **`index.html`** in any modern browser. That single file is the whole app. There is no
-build step, no install, and no backend. You can drag it onto a browser tab, or host the one
-file anywhere (GitHub Pages, Netlify drop, S3, and so on) and share the link.
+You need Node.js 20 or newer.
 
-The app loads React, Tailwind, Framer Motion, and its fonts from public CDNs, so it needs an
-internet connection the first time a browser opens it.
+```bash
+npm install
+npm run dev        # http://localhost:5777/ with hot reload
+```
 
 On a desktop browser (at least 600px wide and 640px tall) the app renders inside an iPhone-style
 frame with a Dynamic Island, status bar and home indicator. The frame scales down to fit shorter
 windows, and the screen inside always stays at 390x844, so layouts never reflow. On a phone it
-fills the screen as before. Add `?frame=0` (or `&frame=0` in a deep link) to turn the frame off,
-or `frame=1` to force it on.
+fills the screen. Add `?frame=0` (or `&frame=0` in a deep link) to turn the frame off, or
+`frame=1` to force it on.
 
-### Local preview (optional)
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server |
+| `npm run build` | Build the static site into `dist/` |
+| `npm run preview` | Serve the built `dist/` locally |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (Vitest) for the formatting and deep-link helpers |
+| `npm run e2e` | End-to-end tests (Playwright) against the production build |
 
-A small PowerShell static server is included if you want to run it locally:
+The first time you run the end-to-end tests, install the browser with
+`npx playwright install chromium`.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File serve.ps1 -Port 5777
-# then visit http://localhost:5777/
-```
+## Deploying
+
+Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): lint,
+unit tests, end-to-end tests, build, then deploy `dist/` to GitHub Pages. Pull requests run the
+same checks without deploying.
+
+One-time setup: in the repository's **Settings > Pages**, set **Source** to **GitHub Actions**.
+
+The build uses a relative base path, so `dist/` also works from any static host or sub-folder.
 
 ## What's inside
 
-One self-contained file (`index.html`) using:
+A [Vite](https://vite.dev/) + React 18 app:
 
-- React 18, Framer Motion 11, and Tailwind CSS, all loaded from a CDN
-- Babel Standalone, so JSX runs directly in the browser with no bundler
+- React 18, Framer Motion 11 and Tailwind CSS 3, installed from npm and bundled by Vite
 - Google Fonts: Fraunces for headlines, DM Sans for the interface, DM Mono for numbers
+
+```
+src/
+  main.jsx            entry point
+  App.jsx             app state, navigation stack and browser history
+  data.js             risk styles, Learn articles, themes
+  routes.js           which screens belong to which tab
+  context.js          app context (useApp)
+  lib/                formatting and deep-link/boot helpers (with unit tests)
+  components/         UI primitives, garden, bottom nav, overlays, phone frame
+  screens/            Onboarding, Home, Save, Invest, Learn, Settings
+e2e/                  Playwright end-to-end tests
+```
 
 ### Flows
 
@@ -76,10 +101,10 @@ between screens inside the app.
 
 ## Design notes and one substitution
 
-- Router: the brief lists React Router DOM. In a single-file build with no bundler, this uses a
-  small custom stack router (a history stack plus Framer Motion's `AnimatePresence`) instead. It
-  keeps the same screen model and adds the left/right slide transitions the brief asks for. Moving
-  to `react-router-dom` later is straightforward if the app is rebuilt as a Vite project.
+- Router: the brief lists React Router DOM. The app uses a small custom stack router instead (a
+  screen stack mirrored into browser history, plus Framer Motion's `AnimatePresence` for the
+  left/right slide transitions). It started as a single HTML file with no bundler; now that the app
+  is a Vite project, moving to `react-router-dom` is a possible next step.
 - Themes are driven by CSS variables, so every screen restyles instantly.
 - The "3D glass" icons are approximated with glossy gradient bubbles wrapping an emoji.
 - The bottom navigation has 5 line icons (Home, Save, Invest, Learn, You), with "You" opening Settings.
@@ -90,10 +115,3 @@ between screens inside the app.
   are captured. For example `#screen=home`, `#screen=investSuccess&flowers=1&amt=50`,
   `#screen=save&goal=Trip%20to%20Japan:1000`, or `#screen=settings&theme=dark&frame=0`.
   Deep links always start from the demo state: they don't read or overwrite saved progress.
-
-## Moving to a Vite project later
-
-This was built as a single HTML file because that is the requested deliverable (a single HTML
-link to host) and the build machine had no Node.js. To convert it to the Vite structure in the
-brief: create a Vite React app, move the `<script type="text/babel">` body into `src/` modules,
-install `framer-motion`, `tailwindcss`, and `react-router-dom`, then drop the CDN tags.
