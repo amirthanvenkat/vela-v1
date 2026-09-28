@@ -56,6 +56,13 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .num { font-family: 'DM Mono', monospace; font-feature-settings: "tnum"; }
+  /* Bottom spacing that clears the home indicator (framed) or the device safe area (phone) */
+  .pb-safe { padding-bottom: max(32px, calc(var(--safe-bottom, 0px) + 16px)); }
+  .pb-nav { padding-bottom: calc(var(--safe-bottom, 0px) + 104px); }
+  /* Keyboard focus */
+  button:focus-visible, [role="button"]:focus-visible, input:focus-visible {
+    outline: 2px solid #FF6B6B; outline-offset: 2px;
+  }
   /* Loading shimmer */
   .boot {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -70,15 +77,17 @@
 
   <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo } = React;
-const { motion, AnimatePresence } = window.Motion;
+const { motion, AnimatePresence, MotionConfig, useReducedMotion } = window.Motion;
 
 /* ----------------------------------------------------------------------------
    VELA: a single-file mobile banking & investing prototype.
-   React + Tailwind + Framer Motion. No backend; all state is mocked.
+   React + Tailwind + Framer Motion. No backend; all state is mocked and kept
+   in localStorage so a refresh doesn't lose your garden.
 ---------------------------------------------------------------------------- */
 
 /* ---------- Data ---------- */
 const FLOWERS = ['🌸', '🌺', '🌻', '🌼', '💐'];
+const MIN_INVEST = 10;
 
 const RISKS = {
   tortoise: { key: 'tortoise', emoji: '🐢', label: 'Tortoise', vibe: 'Play it safe', profile: 'Steady' },
@@ -147,6 +156,18 @@ const useApp = () => useContext(AppCtx);
 
 const fmt = (n) => n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// "Just now", "12 min ago", "Today, 14:05", "3 Oct"
+function when(at) {
+  const diff = Date.now() - at;
+  if (diff < 60e3) return 'Just now';
+  if (diff < 3600e3) return `${Math.floor(diff / 60e3)} min ago`;
+  const d = new Date(at);
+  if (d.toDateString() === new Date().toDateString()) {
+    return 'Today, ' + d.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+}
+
 /* ---------- Tiny UI primitives ---------- */
 
 // Glassy "3D" icon bubble approximating polished glass icons.
@@ -159,7 +180,7 @@ function IconBubble({ children, size = 64, tone = 'coral', className = '' }) {
   };
   return (
     <div
-      className={'relative grid place-items-center rounded-[28%] ' + className}
+      className={'relative grid shrink-0 place-items-center rounded-[28%] ' + className}
       style={{
         width: size, height: size, background: tones[tone] || tones.coral,
         boxShadow: '0 10px 24px -8px rgba(27,45,79,.45), inset 0 2px 4px rgba(255,255,255,.55), inset 0 -6px 10px rgba(0,0,0,.12)',
@@ -167,7 +188,7 @@ function IconBubble({ children, size = 64, tone = 'coral', className = '' }) {
     >
       <div className="absolute left-[14%] top-[10%] h-[28%] w-[44%] rounded-full"
            style={{ background: 'linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,0))', filter: 'blur(1px)' }} />
-      <span style={{ fontSize: size * 0.5, lineHeight: 1, filter: 'drop-shadow(0 2px 2px rgba(0,0,0,.18))' }}>{children}</span>
+      <span aria-hidden="true" style={{ fontSize: size * 0.5, lineHeight: 1, filter: 'drop-shadow(0 2px 2px rgba(0,0,0,.18))' }}>{children}</span>
     </div>
   );
 }
@@ -189,9 +210,14 @@ function Button({ children, onClick, variant = 'coral', disabled = false, classN
   );
 }
 
-function Card({ children, className = '', style = {}, onClick }) {
+// Tappable cards behave like buttons for keyboard and screen reader users too.
+function Card({ children, className = '', style = {}, onClick, label }) {
+  const interactive = onClick ? {
+    role: 'button', tabIndex: 0, 'aria-label': label,
+    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } },
+  } : {};
   return (
-    <div onClick={onClick}
+    <div onClick={onClick} {...interactive}
       className={'rounded-2xl border p-4 ' + (onClick ? 'cursor-pointer active:scale-[.99] transition ' : '') + className}
       style={{ background: 'var(--card)', borderColor: 'var(--border)', boxShadow: '0 6px 22px -10px rgba(27,45,79,.18)', ...style }}>
       {children}
@@ -218,14 +244,82 @@ function ScreenHeader({ title, onBack }) {
   );
 }
 
+// Keeps only digits and up to two decimal places.
+const cleanAmount = (raw) => {
+  const [int, ...dec] = raw.replace(/[^0-9.]/g, '').split('.');
+  return dec.length ? int + '.' + dec.join('').slice(0, 2) : int;
+};
+
+// SGD amount field with preset chips (used by Save, Invest and Goals).
+function AmountInput({ value, onChange, presets = [], autoFocus = false, label = 'Amount in SGD' }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 rounded-xl px-4 py-4"
+        style={{ background: 'var(--card)', border: '2px solid #FF6B6B' }}>
+        <span className="num text-[22px]" style={{ color: 'var(--subtle)' }}>SGD</span>
+        <input inputMode="decimal" autoFocus={autoFocus} value={value} aria-label={label}
+          onChange={(e) => onChange(cleanAmount(e.target.value))}
+          placeholder="0.00"
+          className="num w-full min-w-0 bg-transparent text-[28px] outline-none"
+          style={{ color: 'var(--text)' }} />
+      </div>
+      {presets.length > 0 && (
+        <div className="mt-4 grid gap-2.5" style={{ gridTemplateColumns: `repeat(${presets.length}, minmax(0, 1fr))` }}>
+          {presets.map((p) => {
+            const on = Number(value) === p;
+            return (
+              <button key={p} onClick={() => onChange(String(p))} aria-pressed={on}
+                className="num rounded-xl py-3 text-[15px] font-medium transition active:scale-95"
+                style={{ background: on ? '#FF6B6B' : 'var(--card)', color: on ? '#FFF8F5' : 'var(--text)',
+                         border: '1px solid var(--border)' }}>
+                SGD {p.toLocaleString('en-SG')}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Hint({ children, warn = false }) {
+  return (
+    <p className="mt-3 text-[13px]" role={warn ? 'alert' : undefined}
+      style={{ color: warn ? '#FF6B6B' : 'var(--subtle)' }}>{children}</p>
+  );
+}
+
+/* ---------- Activity ---------- */
+const ACTIVITY_ICON = { deposit: '🏦', save: '💰', invest: '🌸', goal: '🎯' };
+
+function ActivityRow({ item }) {
+  const signed = item.type === 'deposit' ? '+' : item.type === 'goal' ? '' : '−';
+  return (
+    <div className="flex items-center gap-3 py-2.5">
+      <IconBubble size={38} tone={item.type === 'invest' ? 'leaf' : item.type === 'deposit' ? 'navy' : 'coral'}>
+        {ACTIVITY_ICON[item.type] || '•'}
+      </IconBubble>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] font-medium" style={{ color: 'var(--text)' }}>{item.label}</p>
+        <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>{when(item.at)}</p>
+      </div>
+      {item.type !== 'goal' && (
+        <p className="num text-[14px]" style={{ color: signed === '+' ? '#4CAF82' : 'var(--text)' }}>
+          {signed}SGD {fmt(item.amount)}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Garden ---------- */
 function Garden({ flowers, big = false }) {
   const items = ['🌱', ...flowers]; // the seed stays as the garden's starting point
   const sz = big ? 'text-[40px]' : 'text-[30px]';
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5" role="img" aria-label={`Garden with ${flowers.length} ${flowers.length === 1 ? 'flower' : 'flowers'}`}>
       {items.map((f, i) => (
-        <motion.span key={i} className={sz}
+        <motion.span key={i} className={sz} aria-hidden="true"
           initial={{ scale: 0, y: 8 }} animate={{ scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 320, damping: 16, delay: i * 0.05 }}
           style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.18))' }}>{f}</motion.span>
@@ -238,7 +332,7 @@ function GardenTile({ onClick }) {
   const { flowers } = useApp();
   const count = flowers.length;
   return (
-    <Card onClick={onClick} className="overflow-hidden" style={{ background: '#4CAF82', borderColor: 'transparent' }}>
+    <Card onClick={onClick} label="Open your garden" className="overflow-hidden" style={{ background: '#4CAF82', borderColor: 'transparent' }}>
       <div className="flex items-start justify-between">
         <div>
           <p className="font-serif text-[19px] font-semibold text-white">Your Garden</p>
@@ -246,7 +340,7 @@ function GardenTile({ onClick }) {
             {count === 0 ? 'Plant your next flower. Start with SGD 50.' : `${count} ${count === 1 ? 'bloom' : 'blooms'} and growing.`}
           </p>
         </div>
-        <span className="rounded-full bg-white/20 px-2.5 py-1 text-[12px] font-medium text-white">🌿 {count}</span>
+        <span className="shrink-0 whitespace-nowrap rounded-full bg-white/20 px-2.5 py-1 text-[12px] font-medium text-white">🌿 {count}</span>
       </div>
       <div className="mt-3 rounded-xl bg-white/15 p-3">
         <Garden flowers={flowers} />
@@ -257,6 +351,7 @@ function GardenTile({ onClick }) {
 
 /* ---------- Confetti ---------- */
 function Confetti({ run }) {
+  const reduced = useReducedMotion();
   const pieces = useMemo(() => Array.from({ length: 28 }).map((_, i) => ({
     id: i,
     x: (Math.random() * 2 - 1) * 150,
@@ -266,9 +361,9 @@ function Confetti({ run }) {
     size: 7 + Math.random() * 8,
     round: Math.random() > 0.5,
   })), []);
-  if (!run) return null;
+  if (!run || reduced) return null;
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
       {pieces.map((p) => (
         <motion.div key={p.id}
           className="absolute left-1/2 top-[38%]"
@@ -282,32 +377,89 @@ function Confetti({ run }) {
 }
 
 /* ---------- Bottom navigation ---------- */
+const TAB_ICONS = {
+  home: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
+  save: <><path d="M8 3h8M7 6h10" /><path d="M7 6a3 3 0 0 0-2 3v9a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V9a3 3 0 0 0-2-3" /><path d="M10 13h4" /></>,
+  invest: <><path d="M12 21v-9" /><path d="M12 12C12 8 9 5 4 5c0 4 3 7 8 7z" /><path d="M12 14c0-3 2.5-6 7-6 0 3.5-2.5 6-7 6z" /></>,
+  learn: <><path d="M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z" /><path d="M8 7h8" /></>,
+  settings: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>,
+};
 const TABS = [
-  { key: 'home',   icon: '🏠', label: 'Home' },
-  { key: 'save',   icon: '💰', label: 'Save' },
-  { key: 'invest', icon: '🌸', label: 'Invest' },
-  { key: 'learn',  icon: '📖', label: 'Learn' },
-  { key: 'settings', icon: '👤', label: 'You' },
+  { key: 'home',   label: 'Home' },
+  { key: 'save',   label: 'Save' },
+  { key: 'invest', label: 'Invest' },
+  { key: 'learn',  label: 'Learn' },
+  { key: 'settings', label: 'You' },
 ];
 
 function BottomNav() {
   const { current, goTab } = useApp();
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-30"
+    <nav aria-label="Main" className="absolute bottom-0 left-0 right-0 z-30"
       style={{ background: 'var(--navy)', boxShadow: '0 -8px 24px -12px rgba(0,0,0,.4)' }}>
-      <div className="mx-auto grid max-w-[420px] grid-cols-5 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
+      <div className="mx-auto grid max-w-[420px] grid-cols-5 px-2 pt-2"
+        style={{ paddingBottom: 'max(8px, var(--safe-bottom, 0px))' }}>
         {TABS.map((t) => {
           const active = current.tab === t.key;
           return (
-            <button key={t.key} onClick={() => goTab(t.key)}
-              className="flex flex-col items-center gap-0.5 py-1.5">
-              <span className="text-[20px] transition" style={{ filter: active ? 'none' : 'grayscale(.4)', transform: active ? 'translateY(-1px) scale(1.08)' : 'none' }}>{t.icon}</span>
-              <span className="text-[10px] font-medium" style={{ color: active ? '#FF6B6B' : '#7A8899' }}>{t.label}</span>
+            <button key={t.key} onClick={() => goTab(t.key)} aria-current={active ? 'page' : undefined}
+              className="flex flex-col items-center gap-1 rounded-lg py-1.5"
+              style={{ color: active ? '#FF6B6B' : '#7A8899' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"
+                strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: active ? 'translateY(-1px)' : 'none', transition: 'transform .2s' }}>
+                {TAB_ICONS[t.key]}
+              </svg>
+              <span className="text-[10px] font-medium">{t.label}</span>
             </button>
           );
         })}
       </div>
-    </div>
+    </nav>
+  );
+}
+
+/* ---------- Overlays ---------- */
+function Toast({ children, onDone }) {
+  useEffect(() => { const t = setTimeout(onDone, 2200); return () => clearTimeout(t); }, []);
+  return (
+    <motion.div role="status" aria-live="polite"
+      initial={{ x: '-50%', y: 60, opacity: 0 }} animate={{ x: '-50%', y: 0, opacity: 1 }} exit={{ x: '-50%', y: 60, opacity: 0 }}
+      className="absolute left-1/2 z-40 whitespace-nowrap rounded-full px-4 py-2.5 text-[13px]"
+      style={{ bottom: 'calc(var(--safe-bottom, 0px) + 84px)', background: 'var(--text)', color: 'var(--bg)',
+               boxShadow: '0 10px 30px -8px rgba(0,0,0,.5)' }}>
+      {children}
+    </motion.div>
+  );
+}
+
+// Rendered into the screen-level overlay layer so it sits above the bottom nav.
+function Sheet({ title, onClose, children }) {
+  const { overlayEl } = useApp();
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  if (!overlayEl) return null;
+  return ReactDOM.createPortal(
+    <div className="pointer-events-auto absolute inset-0" role="dialog" aria-modal="true" aria-label={title}>
+      <motion.div className="absolute inset-0 bg-black/40" onClick={onClose}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+      <motion.div className="absolute bottom-0 left-0 right-0 rounded-t-3xl px-5 pt-3 pb-safe"
+        style={{ background: 'var(--card)' }}
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 380, damping: 36 }}>
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: 'var(--border)' }} />
+        <div className="mb-1 flex items-center justify-between">
+          <p className="font-serif text-[20px] font-semibold" style={{ color: 'var(--text)' }}>{title}</p>
+          <button onClick={onClose} autoFocus className="rounded-full px-3 py-1.5 text-[13px] font-medium"
+            style={{ background: 'var(--soft)', color: 'var(--text)' }}>Close</button>
+        </div>
+        {children}
+      </motion.div>
+    </div>,
+    overlayEl,
   );
 }
 
@@ -317,8 +469,8 @@ function BottomNav() {
 
 /* ---- Onboarding ---- */
 function Splash() {
-  const { navigate } = useApp();
-  useEffect(() => { const t = setTimeout(() => navigate('welcome', 1), 2000); return () => clearTimeout(t); }, []);
+  const { resetTo } = useApp();
+  useEffect(() => { const t = setTimeout(() => resetTo('welcome'), 2000); return () => clearTimeout(t); }, []);
   return (
     <div className="flex h-full flex-col items-center justify-center" style={{ background: '#1B2D4F' }}>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
@@ -336,9 +488,9 @@ function Splash() {
 function Welcome() {
   const { navigate } = useApp();
   return (
-    <div className="flex h-full flex-col px-6 pb-8 pt-16" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-full flex-col px-6 pb-safe pt-16" style={{ background: 'var(--bg)' }}>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="mb-8 flex items-end gap-2">
+        <div className="mb-8 flex items-end gap-2" aria-hidden="true">
           <span className="text-[44px]">🌱</span><span className="text-[56px]">🌸</span><span className="text-[40px]">🌻</span>
         </div>
         <H1 className="text-[34px]">Investing without<br/>the headache.</H1>
@@ -355,17 +507,18 @@ function RiskQuestion({ retake = false }) {
   const { navigate, back, risk, setRisk } = useApp();
   const [sel, setSel] = useState(retake ? risk : null);
   return (
-    <div className="flex h-full flex-col px-6 pb-8 pt-14" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-full flex-col px-6 pb-safe pt-14" style={{ background: 'var(--bg)' }}>
       {retake && (
         <button onClick={back} className="mb-3 self-start text-[14px]" style={{ color: 'var(--subtle)' }}>← Back</button>
       )}
       <H1 className="text-[28px]">What's your vibe with<br/>money right now?</H1>
       <p className="mt-2 text-[14px]" style={{ color: 'var(--subtle)' }}>Pick the one that feels like you. No wrong answers.</p>
-      <div className="mt-6 flex flex-1 flex-col gap-3">
+      <div className="mt-6 flex flex-1 flex-col gap-3" role="radiogroup" aria-label="Money style">
         {Object.values(RISKS).map((r) => {
           const on = sel === r.key;
           return (
             <motion.button key={r.key} onClick={() => setSel(r.key)} animate={{ scale: on ? 1.02 : 1 }}
+              role="radio" aria-checked={on}
               transition={{ type: 'spring', stiffness: 400, damping: 20 }}
               className="flex items-center gap-4 rounded-2xl p-4 text-left"
               style={{ background: 'var(--card)', border: on ? '2px solid #FF6B6B' : '1px solid var(--border)',
@@ -392,12 +545,12 @@ function NameInput() {
   const [focus, setFocus] = useState(false);
   const submit = () => { setName(val.trim() || 'Maya'); navigate('gardenIntro', 1); };
   return (
-    <div className="flex h-full flex-col px-6 pb-8 pt-20" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-full flex-col px-6 pb-safe pt-20" style={{ background: 'var(--bg)' }}>
       <div className="flex flex-1 flex-col">
         <H1 className="text-[30px]">What should we<br/>call you?</H1>
         <p className="mt-3 text-[14px]" style={{ color: 'var(--subtle)' }}>Just a first name is perfect.</p>
         <input
-          autoFocus value={val}
+          autoFocus value={val} aria-label="Your first name"
           onChange={(e) => setVal(e.target.value)}
           onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
@@ -414,12 +567,12 @@ function NameInput() {
 function GardenIntro() {
   const { finishOnboarding } = useApp();
   return (
-    <div className="flex h-full flex-col px-6 pb-8 pt-16 text-center" style={{ background: '#4CAF82' }}>
+    <div className="flex h-full flex-col px-6 pb-safe pt-16 text-center" style={{ background: '#4CAF82' }}>
       <div className="flex flex-1 flex-col items-center justify-center">
         <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 260, damping: 14 }}
           className="mb-6 grid h-28 w-28 place-items-center rounded-3xl bg-white/20">
-          <span className="text-[64px]" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,.2))' }}>🌱</span>
+          <span className="text-[64px]" aria-hidden="true" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,.2))' }}>🌱</span>
         </motion.div>
         <h1 className="font-serif text-[34px] font-semibold text-white">Meet your garden.</h1>
         <p className="mt-4 max-w-[290px] text-[15px] leading-relaxed text-white/90">
@@ -433,118 +586,154 @@ function GardenIntro() {
 
 /* ---- Home ---- */
 function Home() {
-  const { name, balance, navigate, goTab } = useApp();
+  const { name, balance, invested, activity, seenAt, markSeen, goTab } = useApp();
   const [bell, setBell] = useState(false);
+  const unread = activity.some((a) => a.at > seenAt);
+  const closeBell = useCallback(() => { setBell(false); markSeen(); }, [markSeen]);
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
-      {/* Top bar */}
-      <div className="px-5 pb-6 pt-12" style={{ background: 'var(--navy)', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[13px] text-blush/60">Welcome back</p>
-            <p className="font-serif text-[24px] font-semibold text-blush">Hi {name} 👋</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setBell(true)} aria-label="Notifications"
-              className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10">
-              <span className="text-[18px]">🔔</span>
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-coral" />
-            </button>
-            <button onClick={() => goTab('settings')} aria-label="Profile"
-              className="grid h-10 w-10 place-items-center rounded-full bg-coral text-[15px] font-semibold text-blush">
-              {name.charAt(0).toUpperCase()}
-            </button>
-          </div>
-        </div>
-
-        {/* Balance card */}
-        <div className="mt-5 rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)' }}>
-          <p className="text-[13px] text-blush/55">Your balance</p>
-          <p className="num mt-1 text-[34px] font-medium text-blush">
-            <span className="text-[18px] align-top text-blush/60">SGD </span>{fmt(balance)}
-          </p>
-          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-leaf/20 px-2 py-0.5 text-[12px] font-medium text-leaf">
-            ↑ +2.4% this month
-          </p>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="space-y-4 px-5 pt-5">
-        <GardenTile onClick={() => goTab('invest')} />
-
-        <div className="grid grid-cols-2 gap-3">
-          <Card onClick={() => goTab('save')} className="flex flex-col items-start gap-2">
-            <IconBubble size={44} tone="coral">💰</IconBubble>
+    <div className="relative h-full">
+      <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
+        {/* Top bar */}
+        <div className="px-5 pb-6 pt-12" style={{ background: 'var(--navy)', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+          <div className="flex items-center justify-between">
             <div>
-              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Save</p>
-              <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Build your pot</p>
+              <p className="text-[13px] text-blush/60">Welcome back</p>
+              <p className="font-serif text-[24px] font-semibold text-blush">Hi {name} 👋</p>
             </div>
-          </Card>
-          <Card onClick={() => goTab('invest')} className="flex flex-col items-start gap-2">
-            <IconBubble size={44} tone="leaf">🌸</IconBubble>
-            <div>
-              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Invest</p>
-              <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Plant a flower</p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setBell(true)} aria-label={unread ? 'Notifications, new activity' : 'Notifications'}
+                className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10">
+                <span className="text-[18px]" aria-hidden="true">🔔</span>
+                {unread && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-coral" />}
+              </button>
+              <button onClick={() => goTab('settings')} aria-label="Profile"
+                className="grid h-10 w-10 place-items-center rounded-full bg-coral text-[15px] font-semibold text-blush">
+                {name.charAt(0).toUpperCase()}
+              </button>
             </div>
-          </Card>
+          </div>
+
+          {/* Balance card */}
+          <div className="mt-5 rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)' }}>
+            <p className="text-[13px] text-blush/55">Your balance</p>
+            <p className="num mt-1 text-[34px] font-medium text-blush">
+              <span className="text-[18px] align-top text-blush/60">SGD </span>{fmt(balance)}
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-leaf/20 px-2 py-0.5 text-[12px] font-medium text-leaf">
+              {invested > 0 ? `🌸 SGD ${fmt(invested)} growing in your garden` : '🌱 Ready to plant your first flower'}
+            </p>
+          </div>
         </div>
 
-        <Card onClick={() => goTab('learn')} className="flex items-center gap-3">
-          <IconBubble size={44} tone="navy">📖</IconBubble>
-          <div className="flex-1">
-            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Learn the basics</p>
-            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Money basics in plain language.</p>
+        {/* Body */}
+        <div className="space-y-4 px-5 pt-5">
+          <GardenTile onClick={() => goTab('invest')} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Card onClick={() => goTab('save')} label="Save" className="flex flex-col items-start gap-2">
+              <IconBubble size={44} tone="coral">💰</IconBubble>
+              <div>
+                <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Save</p>
+                <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Build your pot</p>
+              </div>
+            </Card>
+            <Card onClick={() => goTab('invest')} label="Invest" className="flex flex-col items-start gap-2">
+              <IconBubble size={44} tone="leaf">🌸</IconBubble>
+              <div>
+                <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Invest</p>
+                <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Plant a flower</p>
+              </div>
+            </Card>
           </div>
-          <span style={{ color: 'var(--subtle)' }}>→</span>
-        </Card>
+
+          {activity.length > 0 && (
+            <Card>
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Recent</p>
+              <div className="mt-1">
+                {activity.slice(0, 3).map((a, i) => (
+                  <div key={a.id} style={i ? { borderTop: '1px solid var(--border)' } : undefined}><ActivityRow item={a} /></div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          <Card onClick={() => goTab('learn')} label="Learn the basics" className="flex items-center gap-3">
+            <IconBubble size={44} tone="navy">📖</IconBubble>
+            <div className="flex-1">
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Learn the basics</p>
+              <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Money basics in plain language.</p>
+            </div>
+            <span aria-hidden="true" style={{ color: 'var(--subtle)' }}>→</span>
+          </Card>
+        </div>
       </div>
 
       <AnimatePresence>
-        {bell && <Toast onDone={() => setBell(false)}>You're all caught up. No new alerts 🎉</Toast>}
+        {bell && (
+          <Sheet title="Notifications" onClose={closeBell}>
+            {activity.length === 0 ? (
+              <p className="py-6 text-center text-[14px]" style={{ color: 'var(--subtle)' }}>You're all caught up. No new alerts 🎉</p>
+            ) : (
+              <div className="max-h-[360px] overflow-y-auto no-scrollbar">
+                {activity.slice(0, 8).map((a) => (
+                  <div key={a.id} className="relative">
+                    {a.at > seenAt && <span className="absolute -left-2.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-coral" />}
+                    <ActivityRow item={a} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </Sheet>
+        )}
       </AnimatePresence>
     </div>
   );
 }
 
-function Toast({ children, onDone }) {
-  useEffect(() => { const t = setTimeout(onDone, 2200); return () => clearTimeout(t); }, []);
-  return (
-    <motion.div initial={{ x: '-50%', y: 60, opacity: 0 }} animate={{ x: '-50%', y: 0, opacity: 1 }} exit={{ x: '-50%', y: 60, opacity: 0 }}
-      className="absolute bottom-24 left-1/2 z-40 rounded-full px-4 py-2.5 text-[13px] text-blush"
-      style={{ background: '#1B2D4F', boxShadow: '0 10px 30px -8px rgba(0,0,0,.5)' }}>
-      {children}
-    </motion.div>
-  );
-}
-
 /* ---- Save flow ---- */
 function SaveHome() {
-  const { savings, navigate } = useApp();
+  const { savings, goal, navigate } = useApp();
+  const progress = goal ? Math.min(savings / goal.target, 1) : 0;
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+    <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Save" />
       <div className="space-y-4 px-5">
         <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Set money aside for whatever's next. You can take it out whenever you need to.</p>
 
         <Card className="overflow-hidden" style={{ background: '#1B2D4F', borderColor: 'transparent' }}>
           <div className="flex items-center justify-between">
-            <p className="text-[13px] text-blush/60">Savings Pot</p>
+            <p className="text-[13px] text-blush/60">{goal ? `Saving for ${goal.name}` : 'Savings Pot'}</p>
             <IconBubble size={40} tone="glass">🫙</IconBubble>
           </div>
           <p className="num mt-2 text-[30px] font-medium text-blush">
             <span className="text-[15px] text-blush/55">SGD </span>{fmt(savings)}
           </p>
-          <p className="mt-1 text-[12px] text-blush/55">Ready whenever you need it.</p>
+          {goal ? (
+            <div className="mt-3">
+              <div className="h-2 overflow-hidden rounded-full bg-white/15" role="progressbar"
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)} aria-label="Goal progress">
+                <motion.div className="h-full rounded-full bg-coral"
+                  initial={{ width: 0 }} animate={{ width: `${progress * 100}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
+              </div>
+              <p className="mt-2 text-[12px] text-blush/60">
+                {progress >= 1 ? `Goal reached! SGD ${fmt(goal.target)} 🎉` : `${Math.round(progress * 100)}% of SGD ${fmt(goal.target)}`}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-1 text-[12px] text-blush/55">Ready whenever you need it.</p>
+          )}
         </Card>
 
-        <Card className="flex items-center gap-3" style={{ border: '1.5px dashed #FF6B6B' }}>
+        <Card onClick={() => navigate('setGoal', 1)} label={goal ? 'Edit goal' : 'Set a goal'}
+          className="flex items-center gap-3" style={{ border: '1.5px dashed #FF6B6B' }}>
           <IconBubble size={44} tone="coral">🎯</IconBubble>
           <div className="flex-1">
-            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Set a Goal</p>
-            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>A trip? A rainy day? Name it and grow it.</p>
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{goal ? 'Edit your goal' : 'Set a Goal'}</p>
+            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>
+              {goal ? `${goal.name} · SGD ${fmt(goal.target)}` : 'A trip? A rainy day? Name it and grow it.'}
+            </p>
           </div>
-          <span className="text-coral text-[20px]">＋</span>
+          <span className="text-coral text-[20px]" aria-hidden="true">{goal ? '✎' : '＋'}</span>
         </Card>
       </div>
       <div className="px-5 pt-5">
@@ -555,42 +744,51 @@ function SaveHome() {
 }
 
 function AddMoney() {
-  const { back, navigate, addToSavings } = useApp();
+  const { back, navigate, addToSavings, balance } = useApp();
   const [amt, setAmt] = useState('');
-  const presets = [20, 50, 100];
-  const valid = Number(amt) > 0;
-  const submit = () => { if (!valid) return; addToSavings(Number(amt)); navigate('saveConfirm', 1, { amt: Number(amt) }); };
+  const n = Number(amt);
+  const tooMuch = n > balance;
+  const valid = n > 0 && !tooMuch;
+  const submit = () => { if (!valid) return; addToSavings(n); navigate('saveConfirm', 1, { amt: n }); };
   return (
-    <div className="flex h-full flex-col pb-8" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-full flex-col pb-safe" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Add Money" onBack={back} />
       <div className="flex flex-1 flex-col px-6">
-        <p className="text-[15px]" style={{ color: 'var(--text)' }}>How much do you want to save?</p>
-        <div className="mt-5 flex items-center gap-2 rounded-xl px-4 py-4"
-          style={{ background: 'var(--card)', border: '2px solid #FF6B6B' }}>
-          <span className="num text-[22px]" style={{ color: 'var(--subtle)' }}>SGD</span>
-          <input inputMode="decimal" autoFocus value={amt}
-            onChange={(e) => {
-              const [int, ...dec] = e.target.value.replace(/[^0-9.]/g, '').split('.');
-              setAmt(dec.length ? int + '.' + dec.join('').slice(0, 2) : int);
-            }}
-            placeholder="0.00"
-            className="num w-full bg-transparent text-[28px] outline-none"
-            style={{ color: 'var(--text)' }} />
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
-          {presets.map((p) => (
-            <button key={p} onClick={() => setAmt(String(p))}
-              className="num rounded-xl py-3 text-[15px] font-medium transition active:scale-95"
-              style={{ background: Number(amt) === p ? '#FF6B6B' : 'var(--card)',
-                       color: Number(amt) === p ? '#FFF8F5' : 'var(--text)',
-                       border: '1px solid var(--border)' }}>
-              SGD {p}
-            </button>
-          ))}
-        </div>
+        <p className="mb-5 text-[15px]" style={{ color: 'var(--text)' }}>How much do you want to save?</p>
+        <AmountInput value={amt} onChange={setAmt} presets={[20, 50, 100]} autoFocus />
+        {tooMuch
+          ? <Hint warn>That's more than you have. You have SGD {fmt(balance)} available.</Hint>
+          : <Hint>SGD {fmt(balance)} available to move.</Hint>}
       </div>
       <div className="px-6">
         <Button disabled={!valid} onClick={submit}>Save now</Button>
+      </div>
+    </div>
+  );
+}
+
+function SetGoal() {
+  const { back, goal, setGoalTo } = useApp();
+  const [goalName, setGoalName] = useState(goal ? goal.name : '');
+  const [target, setTarget] = useState(goal ? String(goal.target) : '');
+  const valid = goalName.trim().length > 0 && Number(target) > 0;
+  const save = () => { if (!valid) return; setGoalTo({ name: goalName.trim(), target: Number(target) }); back(); };
+  return (
+    <div className="flex h-full flex-col pb-safe" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title={goal ? 'Edit goal' : 'Set a goal'} onBack={back} />
+      <div className="flex flex-1 flex-col overflow-y-auto no-scrollbar px-6">
+        <label className="text-[15px]" style={{ color: 'var(--text)' }} htmlFor="goal-name">What are you saving for?</label>
+        <input id="goal-name" value={goalName} maxLength={28} autoFocus
+          onChange={(e) => setGoalName(e.target.value)}
+          placeholder="A trip to Japan"
+          className="mt-3 w-full rounded-xl px-4 py-3.5 text-[17px] outline-none"
+          style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }} />
+        <p className="mb-3 mt-6 text-[15px]" style={{ color: 'var(--text)' }}>How much do you need?</p>
+        <AmountInput value={target} onChange={setTarget} presets={[500, 1000, 2000]} label="Goal amount in SGD" />
+      </div>
+      <div className="space-y-2 px-6 pt-3">
+        <Button disabled={!valid} onClick={save}>{goal ? 'Update goal' : 'Save goal'}</Button>
+        {goal && <Button variant="ghost" onClick={() => { setGoalTo(null); back(); }}>Remove goal</Button>}
       </div>
     </div>
   );
@@ -602,7 +800,7 @@ function SaveConfirm({ amt }) {
     <div className="flex h-full flex-col items-center justify-center px-8 text-center" style={{ background: '#4CAF82' }}>
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 14 }}
         className="grid h-24 w-24 place-items-center rounded-full bg-white/20">
-        <span className="text-[56px]">✅</span>
+        <span className="text-[56px]" aria-hidden="true">✅</span>
       </motion.div>
       <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
         className="mt-6 font-serif text-[34px] font-semibold text-white">SGD {fmt(amt || 0)} saved.</motion.h1>
@@ -616,14 +814,17 @@ function SaveConfirm({ amt }) {
 
 /* ---- Invest flow ---- */
 function InvestHome() {
-  const { flowers, navigate } = useApp();
+  const { flowers, invested, navigate } = useApp();
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+    <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Invest" />
       <div className="space-y-4 px-5">
         <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Each investment plants a new flower in your garden.</p>
         <Card className="overflow-hidden" style={{ background: '#4CAF82', borderColor: 'transparent' }}>
-          <p className="font-serif text-[19px] font-semibold text-white">Your Garden</p>
+          <div className="flex items-start justify-between">
+            <p className="font-serif text-[19px] font-semibold text-white">Your Garden</p>
+            {invested > 0 && <span className="num rounded-full bg-white/20 px-2.5 py-1 text-[12px] text-white">SGD {fmt(invested)}</span>}
+          </div>
           <p className="mt-0.5 text-[13px] text-white/85">
             {flowers.length === 0 ? 'Still just a seed, ready to bloom.' : `${flowers.length} ${flowers.length === 1 ? 'flower' : 'flowers'} so far. Keep going!`}
           </p>
@@ -631,31 +832,40 @@ function InvestHome() {
             <Garden flowers={flowers} big />
           </div>
         </Card>
-        <Card className="flex items-center gap-3">
+        <Card onClick={() => navigate('investConfirm', 1)} label="Plant a new flower" className="flex items-center gap-3">
           <IconBubble size={44} tone="leaf">🌸</IconBubble>
           <div className="flex-1">
-            <p className="text-[13px]" style={{ color: 'var(--subtle)' }}>Take your money out whenever you want.</p>
             <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Plant a new flower</p>
+            <p className="text-[13px]" style={{ color: 'var(--subtle)' }}>From SGD {MIN_INVEST}. Take your money out whenever you want.</p>
           </div>
+          <span aria-hidden="true" style={{ color: 'var(--subtle)' }}>→</span>
         </Card>
       </div>
       <div className="px-5 pt-5">
-        <Button onClick={() => navigate('investConfirm', 1)}>Plant a flower for SGD 50</Button>
+        <Button onClick={() => navigate('investConfirm', 1)}>Plant a flower</Button>
       </div>
     </div>
   );
 }
 
 function InvestConfirm() {
-  const { back, risk, plantFlower, navigate } = useApp();
+  const { back, risk, balance, plantFlower, navigate } = useApp();
   const r = RISKS[risk];
-  const confirm = () => { plantFlower(); navigate('investSuccess', 1); };
+  const [amt, setAmt] = useState('50');
+  const n = Number(amt);
+  const tooLittle = n > 0 && n < MIN_INVEST;
+  const tooMuch = n > balance;
+  const valid = n >= MIN_INVEST && !tooMuch;
+  const confirm = () => { if (!valid) return; plantFlower(n); navigate('investSuccess', 1, { amt: n }); };
   return (
-    <div className="flex h-full flex-col pb-8" style={{ background: 'var(--bg)' }}>
-      <ScreenHeader title="" onBack={back} />
-      <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
-        <IconBubble size={76} tone="leaf">🌸</IconBubble>
-        <H1 className="mt-6 text-[26px]">You are investing<br/>SGD 50.</H1>
+    <div className="flex h-full flex-col pb-safe" style={{ background: 'var(--bg)' }}>
+      <ScreenHeader title="Plant a flower" onBack={back} />
+      <div className="flex flex-1 flex-col overflow-y-auto no-scrollbar px-6">
+        <p className="mb-5 text-[15px]" style={{ color: 'var(--text)' }}>How much do you want to invest?</p>
+        <AmountInput value={amt} onChange={setAmt} presets={[20, 50, 100]} label="Investment amount in SGD" />
+        {tooMuch ? <Hint warn>That's more than you have. You have SGD {fmt(balance)} available.</Hint>
+          : tooLittle ? <Hint warn>The smallest flower is SGD {MIN_INVEST}.</Hint>
+          : <Hint>SGD {fmt(balance)} available. You can take it out whenever you want.</Hint>}
 
         <div className="mt-6 flex w-full items-center gap-3 rounded-2xl p-3.5"
           style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
@@ -665,20 +875,16 @@ function InvestConfirm() {
             <p className="font-serif text-[17px] font-semibold" style={{ color: 'var(--text)' }}>{r.label} · {r.profile}</p>
           </div>
         </div>
-
-        <p className="mt-5 text-[13px]" style={{ color: 'var(--subtle)' }}>
-          You can take your money out whenever you want.
-        </p>
       </div>
-      <div className="space-y-2 px-7">
-        <Button onClick={confirm}>Confirm</Button>
+      <div className="space-y-2 px-6 pt-3">
+        <Button disabled={!valid} onClick={confirm}>{valid ? `Invest SGD ${fmt(n)}` : 'Invest'}</Button>
         <Button variant="ghost" onClick={back}>Not now</Button>
       </div>
     </div>
   );
 }
 
-function InvestSuccess() {
+function InvestSuccess({ amt }) {
   const { flowers, goTab } = useApp();
   const newFlower = flowers[flowers.length - 1] || '🌸';
   const [stage, setStage] = useState(INSTANT ? 2 : 0); // 0 navy, 1 garden up, 2 bloom+confetti
@@ -697,7 +903,7 @@ function InvestSuccess() {
         <motion.div initial={INSTANT ? false : { y: 260, opacity: 0 }} animate={{ y: stage >= 1 ? 0 : 260, opacity: stage >= 1 ? 1 : 0 }}
           transition={{ type: 'spring', stiffness: 120, damping: 18 }}
           className="mb-8 w-full rounded-3xl p-6" style={{ background: '#4CAF82' }}>
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-wrap items-end gap-2" aria-hidden="true">
             {['🌱', ...flowers.slice(0, -1)].map((f, i) => (
               <span key={i} className="text-[34px]" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.2))' }}>{f}</span>
             ))}
@@ -711,10 +917,10 @@ function InvestSuccess() {
 
       <motion.div initial={INSTANT ? false : { opacity: 0, y: 16 }} animate={{ opacity: stage >= 2 ? 1 : 0, y: stage >= 2 ? 0 : 16 }}
         transition={{ delay: 0.15 }}
-        className="px-7 pb-8 text-center">
+        className="px-7 pb-safe text-center">
         <h1 className="font-serif text-[34px] font-semibold text-blush">{flowers.length === 1 ? 'Your first bloom.' : 'Another bloom!'}</h1>
         <p className="mx-auto mt-3 max-w-[290px] text-[15px] text-blush/75">
-          SGD 50 invested. Your future just got a little bigger.
+          SGD {fmt(amt || 50)} invested. Your future just got a little bigger.
         </p>
         <div className="mt-7">
           <Button onClick={() => goTab('home')}>See my garden</Button>
@@ -728,18 +934,18 @@ function InvestSuccess() {
 function LearnHome() {
   const { navigate } = useApp();
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+    <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Learn" />
       <div className="space-y-3 px-5">
         <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Three short reads, in plain language.</p>
         {Object.values(ARTICLES).map((a) => (
-          <Card key={a.title} onClick={() => navigate('learnArticle', 1, { id: a.title })} className="flex items-center gap-3">
+          <Card key={a.title} onClick={() => navigate('learnArticle', 1, { id: a.title })} label={a.title} className="flex items-center gap-3">
             <IconBubble size={50} tone="glass">{a.icon}</IconBubble>
             <div className="flex-1">
               <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{a.title}</p>
               <p className="text-[12.5px]" style={{ color: 'var(--subtle)' }}>{a.blurb}</p>
             </div>
-            <span style={{ color: 'var(--subtle)' }}>→</span>
+            <span aria-hidden="true" style={{ color: 'var(--subtle)' }}>→</span>
           </Card>
         ))}
       </div>
@@ -751,7 +957,7 @@ function LearnArticle({ id }) {
   const { back } = useApp();
   const a = Object.values(ARTICLES).find((x) => x.title === id) || ARTICLES.investing;
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
+    <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="" onBack={back} />
       <div className="px-6">
         <IconBubble size={84} tone="glass">{a.icon}</IconBubble>
@@ -771,72 +977,191 @@ function LearnArticle({ id }) {
 
 /* ---- Settings ---- */
 function Settings() {
-  const { theme, setTheme, name, setName, risk, navigate } = useApp();
+  const { theme, setTheme, name, setName, risk, navigate, resetDemo } = useApp();
   const [editing, setEditing] = useState(false);
   const [tmp, setTmp] = useState(name);
+  const [toast, setToast] = useState(null);
+  const [armed, setArmed] = useState(false); // "tap again to reset"
+  useEffect(() => { if (!armed) return; const t = setTimeout(() => setArmed(false), 3000); return () => clearTimeout(t); }, [armed]);
   const r = RISKS[risk];
+  const saveName = () => { setName(tmp.trim() || name); setEditing(false); setToast('Name updated'); };
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28" style={{ background: 'var(--bg)' }}>
-      <ScreenHeader title="You" />
-      <div className="space-y-4 px-5">
-        {/* Theme */}
-        <Card>
-          <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Theme</p>
-          <div className="mt-3 grid grid-cols-3 gap-2.5">
-            {Object.entries(THEMES).map(([key, t]) => {
-              const on = theme === key;
-              return (
-                <button key={key} onClick={() => setTheme(key)}
-                  className="flex flex-col items-center gap-2 rounded-xl py-3 transition"
-                  style={{ border: on ? '2px solid #FF6B6B' : '1px solid var(--border)', background: 'var(--soft)' }}>
-                  <span className="h-7 w-7 rounded-full" style={{ background: t.swatch, border: '1px solid rgba(0,0,0,.1)' }} />
-                  <span className="text-[12px] font-medium" style={{ color: 'var(--text)' }}>{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-
-        {/* Display name */}
-        <Card>
-          <div className="flex items-center justify-between">
-            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Display name</p>
-            {!editing && <button onClick={() => { setTmp(name); setEditing(true); }} className="text-[13px] text-coral font-medium">Edit</button>}
-          </div>
-          {editing ? (
-            <div className="mt-3 flex gap-2">
-              <input autoFocus value={tmp} onChange={(e) => setTmp(e.target.value)}
-                className="flex-1 rounded-lg px-3 py-2 text-[15px] outline-none"
-                style={{ background: 'var(--soft)', color: 'var(--text)', border: '1px solid var(--border)' }} />
-              <button onClick={() => { setName(tmp.trim() || name); setEditing(false); }}
-                className="rounded-lg bg-coral px-4 text-[14px] font-medium text-blush">Save</button>
+    <div className="relative h-full">
+      <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
+        <ScreenHeader title="You" />
+        <div className="space-y-4 px-5">
+          {/* Theme */}
+          <Card>
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Theme</p>
+            <div className="mt-3 grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Theme">
+              {Object.entries(THEMES).map(([key, t]) => {
+                const on = theme === key;
+                return (
+                  <button key={key} onClick={() => setTheme(key)} role="radio" aria-checked={on}
+                    className="flex flex-col items-center gap-2 rounded-xl py-3 transition"
+                    style={{ border: on ? '2px solid #FF6B6B' : '1px solid var(--border)', background: 'var(--soft)' }}>
+                    <span className="h-7 w-7 rounded-full" style={{ background: t.swatch, border: '1px solid rgba(0,0,0,.1)' }} />
+                    <span className="text-[12px] font-medium" style={{ color: 'var(--text)' }}>{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <p className="mt-1 text-[15px]" style={{ color: 'var(--subtle)' }}>{name}</p>
-          )}
-        </Card>
+          </Card>
 
-        {/* Risk profile */}
-        <Card className="flex items-center gap-3">
-          <IconBubble size={48} tone="glass">{r.emoji}</IconBubble>
-          <div className="flex-1">
-            <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Your money style</p>
-            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{r.label} · {r.profile}</p>
-          </div>
-          <button onClick={() => navigate('retakeRisk', 1)} className="rounded-full px-3 py-1.5 text-[13px] font-medium text-coral"
-            style={{ border: '1px solid #FF6B6B' }}>Retake</button>
-        </Card>
+          {/* Display name */}
+          <Card>
+            <div className="flex items-center justify-between">
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Display name</p>
+              {!editing && <button onClick={() => { setTmp(name); setEditing(true); }} className="text-[13px] text-coral font-medium">Edit</button>}
+            </div>
+            {editing ? (
+              <div className="mt-3 flex gap-2">
+                <input autoFocus value={tmp} onChange={(e) => setTmp(e.target.value)} aria-label="Display name"
+                  onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                  className="min-w-0 flex-1 rounded-lg px-3 py-2 text-[15px] outline-none"
+                  style={{ background: 'var(--soft)', color: 'var(--text)', border: '1px solid var(--border)' }} />
+                <button onClick={saveName}
+                  className="rounded-lg bg-coral px-4 text-[14px] font-medium text-blush">Save</button>
+              </div>
+            ) : (
+              <p className="mt-1 text-[15px]" style={{ color: 'var(--subtle)' }}>{name}</p>
+            )}
+          </Card>
 
-        {/* About */}
-        <Card>
-          <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>About VELA</p>
-          <p className="mt-1.5 text-[14px] leading-relaxed" style={{ color: 'var(--subtle)' }}>
-            Vela is a simpler way to save and invest your first salary, without the jargon or pressure.
-          </p>
-          <p className="mt-3 font-serif text-[15px] italic" style={{ color: '#FF6B6B' }}>"Your money, moving."</p>
-          <p className="mt-2 text-[12px]" style={{ color: 'var(--subtle)' }}>Prototype · v1.0</p>
-        </Card>
+          {/* Risk profile */}
+          <Card className="flex items-center gap-3">
+            <IconBubble size={48} tone="glass">{r.emoji}</IconBubble>
+            <div className="flex-1">
+              <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Your money style</p>
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{r.label} · {r.profile}</p>
+            </div>
+            <button onClick={() => navigate('retakeRisk', 1)} className="rounded-full px-3 py-1.5 text-[13px] font-medium text-coral"
+              style={{ border: '1px solid #FF6B6B' }}>Retake</button>
+          </Card>
+
+          {/* About */}
+          <Card>
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>About VELA</p>
+            <p className="mt-1.5 text-[14px] leading-relaxed" style={{ color: 'var(--subtle)' }}>
+              Vela is a simpler way to save and invest your first salary, without the jargon or pressure.
+            </p>
+            <p className="mt-3 font-serif text-[15px] italic" style={{ color: '#FF6B6B' }}>"Your money, moving."</p>
+            <p className="mt-2 text-[12px]" style={{ color: 'var(--subtle)' }}>Prototype · v1.1</p>
+          </Card>
+
+          {/* Reset */}
+          <Card className="flex items-center gap-3">
+            <div className="flex-1">
+              <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>Reset demo</p>
+              <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Start again from the welcome screen with Maya's demo money.</p>
+            </div>
+            <button onClick={() => (armed ? resetDemo() : setArmed(true))}
+              className="whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium"
+              style={armed ? { background: '#FF6B6B', color: '#FFF8F5' } : { border: '1px solid var(--border)', color: 'var(--text)' }}>
+              {armed ? 'Tap to confirm' : 'Reset'}
+            </button>
+          </Card>
+        </div>
       </div>
+      <AnimatePresence>
+        {toast && <Toast onDone={() => setToast(null)}>{toast}</Toast>}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ======================================================================
+   PHONE FRAME (desktop only)
+====================================================================== */
+const SCREEN_W = 390, SCREEN_H = 844, BEZEL = 12;
+const DEVICE_W = SCREEN_W + BEZEL * 2, DEVICE_H = SCREEN_H + BEZEL * 2;
+const FRAME_QUERY = '(min-width: 600px) and (min-height: 640px)';
+
+function useFrameMode() {
+  const forced = BOOT.frame === '0' ? false : BOOT.frame === '1' ? true : null;
+  const [on, setOn] = useState(() => forced ?? window.matchMedia(FRAME_QUERY).matches);
+  useEffect(() => {
+    if (forced !== null) return;
+    const mq = window.matchMedia(FRAME_QUERY);
+    const onChange = (e) => setOn(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return on;
+}
+
+// Scale the whole device so it always fits the browser window; the screen inside stays 390x844.
+function useFitScale() {
+  const calc = () => Math.min(1, (window.innerHeight - 72) / DEVICE_H, (window.innerWidth - 32) / DEVICE_W);
+  const [scale, setScale] = useState(calc);
+  useEffect(() => {
+    const onResize = () => setScale(calc());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return scale;
+}
+
+function StatusBar({ light }) {
+  const c = light ? '#FFFFFF' : '#1C1C1C';
+  return (
+    <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-[47px] items-center justify-between pl-[34px] pr-[26px] pt-[6px]"
+      style={{ color: c, transition: 'color .3s' }} aria-hidden="true">
+      <span className="text-[16px] font-semibold tracking-[-0.01em]" style={{ fontFamily: '"DM Sans", system-ui' }}>9:41</span>
+      <div className="flex items-center gap-[6px]">
+        <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor">
+          <rect x="0" y="8" width="3" height="4" rx="1" /><rect x="5" y="5.5" width="3" height="6.5" rx="1" />
+          <rect x="10" y="3" width="3" height="9" rx="1" /><rect x="15" y="0" width="3" height="12" rx="1" />
+        </svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
+          <path d="M8 2.2c2.3 0 4.4.9 6 2.4l1.2-1.3A10.3 10.3 0 0 0 8 .4 10.3 10.3 0 0 0 .8 3.3L2 4.6a8.5 8.5 0 0 1 6-2.4z" />
+          <path d="M8 5.6c1.4 0 2.6.5 3.6 1.4l1.2-1.3A7 7 0 0 0 8 3.8a7 7 0 0 0-4.8 1.9L4.4 7c1-.9 2.2-1.4 3.6-1.4z" />
+          <path d="M8 9.1c.5 0 1 .2 1.3.5L8 11.6 6.7 9.6c.3-.3.8-.5 1.3-.5z" />
+        </svg>
+        <svg width="27" height="13" viewBox="0 0 27 13" fill="none">
+          <rect x=".5" y=".5" width="23" height="12" rx="3.5" stroke="currentColor" opacity=".4" />
+          <rect x="2" y="2" width="20" height="9" rx="2" fill="currentColor" />
+          <path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2z" fill="currentColor" opacity=".45" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function PhoneFrame({ light, children }) {
+  const scale = useFitScale();
+  const side = (style) => (
+    <div className="absolute w-[3px] rounded-sm" style={{ background: 'linear-gradient(90deg,#4a4f58,#2a2d33)', ...style }} />
+  );
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden"
+      style={{ background: 'radial-gradient(1100px 620px at 50% -10%, #1f3358 0%, #0a0f17 62%)' }}>
+      <div style={{ width: DEVICE_W * scale, height: DEVICE_H * scale }}>
+        <div className="relative" style={{ width: DEVICE_W, height: DEVICE_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+          {/* Side buttons */}
+          {side({ left: -3, top: 118, height: 32 })}
+          {side({ left: -3, top: 178, height: 62 })}
+          {side({ left: -3, top: 252, height: 62 })}
+          {side({ right: -3, top: 208, height: 96 })}
+          {/* Bezel */}
+          <div className="absolute inset-0 rounded-[58px]"
+            style={{ background: 'linear-gradient(145deg,#30343c 0%,#111318 45%,#22252b 100%)', padding: BEZEL,
+                     boxShadow: '0 0 0 1.5px #454a53, 0 0 0 3px #111317, 0 50px 90px -24px rgba(0,0,0,.8), 0 24px 40px -20px rgba(0,0,0,.6), inset 0 0 3px rgba(255,255,255,.18)' }}>
+            {/* Screen */}
+            <div className="relative overflow-hidden rounded-[46px] bg-black"
+              style={{ width: SCREEN_W, height: SCREEN_H, isolation: 'isolate', transform: 'translateZ(0)' }}>
+              {children}
+              <StatusBar light={light} />
+              <div className="pointer-events-none absolute left-1/2 top-[11px] z-50 h-[35px] w-[122px] -translate-x-1/2 rounded-full bg-black" aria-hidden="true" />
+              <div className="pointer-events-none absolute bottom-[8px] left-1/2 z-50 h-[5px] w-[134px] -translate-x-1/2 rounded-full"
+                style={{ background: light ? 'rgba(255,255,255,.85)' : 'rgba(0,0,0,.8)', transition: 'background .3s' }} aria-hidden="true" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="mt-5 text-[12px] tracking-wide" style={{ color: '#6f7d90' }}>
+        VELA prototype · open it on your phone for the full experience
+      </p>
     </div>
   );
 }
@@ -848,19 +1173,23 @@ function Settings() {
 // Which tab a screen belongs to (drives bottom nav highlight & presence).
 const SCREEN_TAB = {
   home: 'home',
-  save: 'save', addMoney: 'save', saveConfirm: 'save',
+  save: 'save', addMoney: 'save', saveConfirm: 'save', setGoal: 'save',
   invest: 'invest', investConfirm: 'invest', investSuccess: 'invest',
   learn: 'learn', learnArticle: 'learn',
   settings: 'settings', retakeRisk: 'settings',
 };
 const ONBOARDING = ['splash', 'welcome', 'risk', 'name', 'gardenIntro'];
 // Modal-style flow screens: they own the full height (their own back/exit CTA), no bottom nav.
-const NAV_HIDDEN = ['addMoney', 'saveConfirm', 'investConfirm', 'investSuccess', 'retakeRisk'];
+const NAV_HIDDEN = ['addMoney', 'saveConfirm', 'setGoal', 'investConfirm', 'investSuccess', 'retakeRisk'];
+// Screens with a dark or coloured top edge get a light status bar in the phone frame.
+const DARK_TOP = ['splash', 'gardenIntro', 'home', 'saveConfirm', 'investSuccess'];
 
 // Optional deep links for demos and docs screenshots, e.g. #screen=investSuccess&flowers=1
+// (also reads ?frame=0 from the query string).
 const BOOT = (() => {
   const p = {};
-  window.location.hash.replace(/^#/, '').split('&').forEach((kv) => {
+  const parts = [window.location.search.replace(/^\?/, ''), window.location.hash.replace(/^#/, '')];
+  parts.join('&').split('&').forEach((kv) => {
     const [k, v] = kv.split('=');
     if (k) p[k] = decodeURIComponent(v || '');
   });
@@ -869,6 +1198,33 @@ const BOOT = (() => {
 const BOOT_SCREEN = (BOOT.screen && (SCREEN_TAB[BOOT.screen] || ONBOARDING.includes(BOOT.screen))) ? BOOT.screen : null;
 // Deep-linked boots render their end state at once (used for docs screenshots).
 const INSTANT = !!BOOT_SCREEN;
+// In-app navigation writes #/<screen> so a refresh can come back to the same tab.
+const ROUTE = window.location.hash.startsWith('#/') ? window.location.hash.slice(2) : null;
+
+// Saved demo state. Deep links ignore it (and don't write it) so screenshots stay deterministic.
+const STORE_KEY = 'vela:v1';
+const SAVED = (() => {
+  if (INSTANT) return null;
+  try { return JSON.parse(window.localStorage.getItem(STORE_KEY)) || null; } catch (e) { return null; }
+})();
+
+const bootGoal = () => {
+  if (!BOOT.goal) return null;
+  const [gName, gTarget] = BOOT.goal.split(':');
+  return gName && Number(gTarget) > 0 ? { name: gName, target: Number(gTarget) } : null;
+};
+const seedActivity = () => [
+  { id: 'seed', type: 'deposit', label: 'Salary from your bank', amount: 1240, at: Date.now() - 3 * 864e5 },
+];
+
+function initialStack() {
+  if (BOOT_SCREEN) return [{ screen: BOOT_SCREEN, params: { amt: Number(BOOT.amt) || undefined, id: BOOT.id } }];
+  if (SAVED && SAVED.onboarded) {
+    const tab = TABS.some((t) => t.key === ROUTE) ? ROUTE : 'home';
+    return [{ screen: tab, params: {} }];
+  }
+  return [{ screen: 'splash', params: {} }];
+}
 
 function renderScreen(screen, params) {
   switch (screen) {
@@ -881,10 +1237,11 @@ function renderScreen(screen, params) {
     case 'home': return <Home />;
     case 'save': return <SaveHome />;
     case 'addMoney': return <AddMoney />;
+    case 'setGoal': return <SetGoal />;
     case 'saveConfirm': return <SaveConfirm amt={params.amt} />;
     case 'invest': return <InvestHome />;
     case 'investConfirm': return <InvestConfirm />;
-    case 'investSuccess': return <InvestSuccess />;
+    case 'investSuccess': return <InvestSuccess amt={params.amt} />;
     case 'learn': return <LearnHome />;
     case 'learnArticle': return <LearnArticle id={params.id} />;
     case 'settings': return <Settings />;
@@ -893,43 +1250,115 @@ function renderScreen(screen, params) {
 }
 
 function App() {
+  const S = SAVED || {};
+  const bootFlowers = FLOWERS.slice(0, parseInt(BOOT.flowers, 10) || 0);
   // Persistent app state (mocked demo data, optionally seeded via BOOT deep link)
-  const [name, setName] = useState(BOOT.name || 'Maya');
-  const [balance, setBalance] = useState(1240.0);
-  const [savings, setSavings] = useState(320.0);
-  const [risk, setRisk] = useState(RISKS[BOOT.risk] ? BOOT.risk : 'fox');
-  const [flowers, setFlowers] = useState(FLOWERS.slice(0, parseInt(BOOT.flowers, 10) || 0));
-  const [theme, setTheme] = useState(THEMES[BOOT.theme] ? BOOT.theme : 'light');
+  const [name, setName] = useState(S.name || BOOT.name || 'Maya');
+  const [balance, setBalance] = useState(S.balance ?? 1240.0);
+  const [savings, setSavings] = useState(S.savings ?? 320.0);
+  const [risk, setRisk] = useState(RISKS[S.risk] ? S.risk : RISKS[BOOT.risk] ? BOOT.risk : 'fox');
+  const [flowers, setFlowers] = useState(S.flowers || bootFlowers);
+  const [invested, setInvested] = useState(S.invested ?? bootFlowers.length * 50);
+  const [theme, setTheme] = useState(THEMES[S.theme] ? S.theme : THEMES[BOOT.theme] ? BOOT.theme : 'light');
+  const [goal, setGoal] = useState(S.goal !== undefined ? S.goal : bootGoal());
+  const [activity, setActivity] = useState(S.activity || seedActivity);
+  const [seenAt, setSeenAt] = useState(S.seenAt || 0);
+  const [onboarded, setOnboarded] = useState(!!S.onboarded);
+  const frame = useFrameMode();
+  const [overlayEl, setOverlayEl] = useState(null);
 
-  // Navigation stack
-  const [stack, setStack] = useState([{ screen: BOOT_SCREEN || 'splash', params: { amt: Number(BOOT.amt) || undefined, id: BOOT.id } }]);
+  useEffect(() => {
+    if (INSTANT) return;
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify({
+        name, balance, savings, risk, flowers, invested, theme, goal, activity, seenAt, onboarded,
+      }));
+    } catch (e) { /* private mode or storage blocked: the demo still works, it just won't remember */ }
+  }, [name, balance, savings, risk, flowers, invested, theme, goal, activity, seenAt, onboarded]);
+
+  // Navigation stack, mirrored into browser history so the back button stays inside the app.
+  // Each history entry carries a snapshot of the stack; popstate restores it.
+  const [stack, setStack] = useState(initialStack);
   const [dir, setDir] = useState(1);
+  const stackRef = useRef(stack);
+  const seqRef = useRef(0);
+  const onboardedRef = useRef(onboarded);
+  onboardedRef.current = onboarded;
+
+  const commit = useCallback((next, direction, mode = 'push') => {
+    stackRef.current = next;
+    setDir(direction);
+    setStack(next);
+    if (mode === 'push') seqRef.current += 1;
+    const top = next[next.length - 1].screen;
+    try { window.history[mode === 'push' ? 'pushState' : 'replaceState']({ vela: true, stack: next, seq: seqRef.current }, '', '#/' + top); } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    // Tag the entry we booted on (deep links keep their URL so a refresh reproduces them).
+    // After a refresh, keep the entry's position so back/forward animations still point the right way.
+    const prev = window.history.state;
+    seqRef.current = prev && prev.vela ? prev.seq : 0;
+    try { window.history.replaceState({ vela: true, stack: stackRef.current, seq: seqRef.current }, '', INSTANT ? undefined : '#/' + stackRef.current[0].screen); } catch (e) {}
+    const onPop = (e) => {
+      const st = e.state;
+      if (!st || !st.vela) return;
+      let next = st.stack;
+      // Once onboarded, don't let the back button drop you into the onboarding screens again.
+      if (onboardedRef.current && ONBOARDING.includes(next[next.length - 1].screen)) {
+        next = [{ screen: 'home', params: {} }];
+        try { window.history.replaceState({ ...st, stack: next }, '', '#/home'); } catch (err) {}
+      }
+      setDir(st.seq < seqRef.current ? -1 : 1);
+      seqRef.current = st.seq;
+      stackRef.current = next;
+      setStack(next);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   const current = stack[stack.length - 1];
   const tab = SCREEN_TAB[current.screen] || null;
   const showNav = tab !== null && !ONBOARDING.includes(current.screen) && !NAV_HIDDEN.includes(current.screen);
 
   const navigate = useCallback((screen, direction = 1, params = {}) => {
-    setDir(direction);
-    setStack((s) => [...s, { screen, params }]);
-  }, []);
+    commit([...stackRef.current, { screen, params }], direction);
+  }, [commit]);
   const back = useCallback(() => {
-    setDir(-1);
-    setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
-  }, []);
-  const goTab = useCallback((tabKey) => {
-    setDir(1);
-    setStack([{ screen: tabKey, params: {} }]);
-  }, []);
-  const finishOnboarding = useCallback(() => { setDir(1); setStack([{ screen: 'home', params: {} }]); }, []);
+    const s = stackRef.current;
+    if (s.length > 1 && window.history.state && window.history.state.vela) window.history.back();
+    else commit(s.length > 1 ? s.slice(0, -1) : [{ screen: SCREEN_TAB[s[0].screen] || 'home', params: {} }], -1, 'replace');
+  }, [commit]);
+  const goTab = useCallback((tabKey) => commit([{ screen: tabKey, params: {} }], 1), [commit]);
+  const resetTo = useCallback((screen) => commit([{ screen, params: {} }], 1, 'replace'), [commit]);
+  const finishOnboarding = useCallback(() => { setOnboarded(true); commit([{ screen: 'home', params: {} }], 1, 'replace'); }, [commit]);
 
-  const addToSavings = useCallback((amt) => { setSavings((s) => s + amt); setBalance((b) => b - amt); }, []);
-  const plantFlower = useCallback(() => { setFlowers((f) => [...f, FLOWERS[f.length % FLOWERS.length]]); setBalance((b) => b - 50); }, []);
+  const log = (type, label, amount) =>
+    setActivity((a) => [{ id: Date.now() + '-' + a.length, type, label, amount, at: Date.now() }, ...a].slice(0, 30));
+  const addToSavings = useCallback((amt) => {
+    setSavings((s) => s + amt); setBalance((b) => b - amt);
+    log('save', 'Moved to your Savings Pot', amt);
+  }, []);
+  const plantFlower = useCallback((amt) => {
+    setFlowers((f) => [...f, FLOWERS[f.length % FLOWERS.length]]);
+    setBalance((b) => b - amt); setInvested((i) => i + amt);
+    log('invest', 'Planted a flower', amt);
+  }, []);
+  const setGoalTo = useCallback((g) => {
+    setGoal(g);
+    if (g) log('goal', `Goal set: ${g.name}`, g.target);
+  }, []);
+  const markSeen = useCallback(() => setSeenAt(Date.now()), []);
+  const resetDemo = useCallback(() => {
+    try { window.localStorage.removeItem(STORE_KEY); } catch (e) {}
+    window.location.replace(window.location.pathname + window.location.search);
+  }, []);
 
   const ctx = {
-    name, setName, balance, savings, addToSavings, risk, setRisk, flowers, plantFlower,
-    theme, setTheme, current: { ...current, tab },
-    navigate, back, goTab, finishOnboarding,
+    name, setName, balance, savings, addToSavings, risk, setRisk, flowers, plantFlower, invested,
+    goal, setGoalTo, activity, seenAt, markSeen, overlayEl, theme, setTheme, current: { ...current, tab },
+    navigate, back, goTab, resetTo, finishOnboarding, resetDemo,
   };
 
   const variants = {
@@ -938,24 +1367,32 @@ function App() {
     exit: (d) => ({ x: d > 0 ? '-30%' : '30%', opacity: 0 }),
   };
 
+  const screen = (
+    <div className={'relative w-full overflow-hidden ' + (frame ? 'h-full' : 'h-[100dvh] max-w-[420px]')}
+      style={{ ...THEMES[theme].vars, '--safe-bottom': frame ? '34px' : 'env(safe-area-inset-bottom, 0px)', background: 'var(--bg)' }}>
+      <AnimatePresence custom={dir} mode="wait" initial={false}>
+        <motion.div key={current.screen + JSON.stringify(current.params)}
+          custom={dir} variants={variants} initial="enter" animate="center" exit="exit"
+          transition={{ type: 'tween', duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+          className="absolute inset-0">
+          {renderScreen(current.screen, current.params)}
+        </motion.div>
+      </AnimatePresence>
+
+      {showNav && <BottomNav />}
+      <div ref={setOverlayEl} className="pointer-events-none absolute inset-0 z-40" />
+    </div>
+  );
+
   return (
     <AppCtx.Provider value={ctx}>
-      <div className="flex h-full w-full items-center justify-center" style={{ background: '#0a0f17' }}>
-        {/* Phone frame */}
-        <div className="relative h-[100dvh] w-full max-w-[420px] overflow-hidden"
-          style={{ ...THEMES[theme].vars, background: 'var(--bg)' }}>
-          <AnimatePresence custom={dir} mode="wait" initial={false}>
-            <motion.div key={current.screen + JSON.stringify(current.params)}
-              custom={dir} variants={variants} initial="enter" animate="center" exit="exit"
-              transition={{ type: 'tween', duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-              className="absolute inset-0">
-              {renderScreen(current.screen, current.params)}
-            </motion.div>
-          </AnimatePresence>
-
-          {showNav && <BottomNav />}
-        </div>
-      </div>
+      <MotionConfig reducedMotion="user">
+        {frame ? (
+          <PhoneFrame light={theme !== 'light' || DARK_TOP.includes(current.screen)}>{screen}</PhoneFrame>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center" style={{ background: '#0a0f17' }}>{screen}</div>
+        )}
+      </MotionConfig>
     </AppCtx.Provider>
   );
 }
