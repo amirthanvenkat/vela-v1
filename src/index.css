@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: #0a0f17;
+  overflow: hidden;
+}
+#root { height: 100%; }
+/* Hide scrollbars but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.num { font-family: 'DM Mono', monospace; font-feature-settings: "tnum"; }
+/* Bottom spacing that clears the home indicator (framed) or the device safe area (phone) */
+.pb-safe { padding-bottom: max(32px, calc(var(--safe-bottom, 0px) + 16px)); }
+.pb-nav { padding-bottom: calc(var(--safe-bottom, 0px) + 104px); }
+/* Keyboard focus */
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible {
+  outline: 2px solid #FF6B6B; outline-offset: 2px;
+}
