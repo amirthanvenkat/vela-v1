@@ -61,11 +61,17 @@ in over time.
 *As Maya, I want one screen that shows my balance and what I can do next, so that a quick
 check takes seconds.*
 
-Home shows her balance in large clear digits, this month's change in green, and her garden
-tile with the seed waiting. Below that sit three cards: Save, Invest, and Learn. The bottom
-bar keeps the same four destinations plus her profile everywhere in the app.
+Home shows her balance in large clear digits, a green line showing how much is growing in her
+garden, and her garden tile with the seed waiting. Below that sit Save and Invest cards, a short
+list of recent activity, and Learn. The bottom bar keeps the same four destinations plus her
+profile everywhere in the app. The bell opens a sheet with everything that has happened since
+she last looked.
 
 ![Home dashboard with balance card and garden tile](screenshots/04-home.png)
+
+| Notifications |
+|---|
+| ![Notifications sheet listing recent activity](screenshots/12-notifications.png) |
 
 **Why this matters:** one glance answers "how much do I have" and "what can I do", and the
 garden keeps her goal visible without a single chart.
@@ -85,8 +91,15 @@ bit counts." Her balance updates straight away.
 |---|---|
 | ![Add money screen with preset amount chips](screenshots/05-add-money.png) | ![Green confirmation screen showing SGD 50 saved](screenshots/06-save-confirm.png) |
 
+A few weeks later she taps **Set a Goal**, types "Trip to Japan" and picks the SGD 1,000 chip.
+The savings pot now says what it is for, with a coral bar showing how far along she is.
+
+![Savings pot with a Trip to Japan goal and progress bar](screenshots/11-set-goal.png)
+
 **Why this matters:** preset chips remove the "how much is right?" hesitation, and the
-confirmation celebrates a small amount instead of nudging her to save more.
+confirmation celebrates a small amount instead of nudging her to save more. If she types more
+than she has, the button stays disabled and a line tells her how much is available, so her
+balance can never go negative. A named goal turns "saving" into "saving for something".
 
 ---
 
@@ -95,11 +108,12 @@ confirmation celebrates a small amount instead of nudging her to save more.
 *As Maya, I want to invest a small amount and be reassured I can get it back, so that the
 first step doesn't feel like a commitment I might regret.*
 
-Maya has read that starting small is fine, so she tries the **Plant a flower for SGD 50**
-button. The confirmation screen shows exactly what is happening: the amount, her fox style,
-and one line that answers her biggest worry: she can take her money out whenever she wants.
+Maya has read that starting small is fine, so she taps **Plant a flower**. SGD 50 is already
+picked, with SGD 20 and SGD 100 one tap away (the smallest flower is SGD 10). The screen shows
+exactly what is happening: the amount, her fox style, how much she has available, and one line
+that answers her biggest worry: she can take her money out whenever she wants.
 
-She taps **Confirm**. The screen goes dark, her garden rises from the bottom, and a flower
+She taps **Invest SGD 50.00**. The screen goes dark, her garden rises from the bottom, and a flower
 blooms next to her seed with a burst of confetti. "Your first bloom."
 
 | Confirming | First bloom |
@@ -133,8 +147,9 @@ profile is a preference she can change, not a label she is stuck with.
 
 ## Where Maya ends up
 
-A month in, Maya has SGD 370 in her savings pot, two flowers in her garden, and she can
+A month in, Maya has SGD 370 in her savings pot, a goal she can see filling up, two flowers in her garden, and she can
 explain to a colleague what diversifying means without using the word. The app never asked
 her to be someone she isn't. That is the product goal in one sentence.
 
-*All data in the prototype is mocked. Maya is a design persona, not a real user.*
+*All data in the prototype is mocked. Maya is a design persona, not a real user. Screenshots
+are captured frameless at phone size with deep links such as `#screen=home&frame=0`.*
