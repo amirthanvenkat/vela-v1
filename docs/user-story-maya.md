@@ -152,4 +152,4 @@ explain to a colleague what diversifying means without using the word. The app n
 her to be someone she isn't. That is the product goal in one sentence.
 
 *All data in the prototype is mocked. Maya is a design persona, not a real user. Screenshots
-are captured frameless at phone size with deep links such as `#screen=home&frame=0`.*
+are captured frameless at phone size with demo links such as `#/home?demo&frame=0`.*

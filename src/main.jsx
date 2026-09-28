@@ -1,8 +1,13 @@
 import { createRoot } from 'react-dom/client';
+import { HashRouter } from 'react-router';
 import App from './App';
 import './index.css';
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <HashRouter>
+    <App />
+  </HashRouter>,
+);
 // remove boot splash once React paints
 requestAnimationFrame(() => {
   const b = document.getElementById('boot');

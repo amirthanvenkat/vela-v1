@@ -10,8 +10,8 @@ export function LearnHome() {
       <ScreenHeader title="Learn" />
       <div className="space-y-3 px-5">
         <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Three short reads, in plain language.</p>
-        {Object.values(ARTICLES).map((a) => (
-          <Card key={a.title} onClick={() => navigate('learnArticle', 1, { id: a.title })} label={a.title} className="flex items-center gap-3">
+        {Object.entries(ARTICLES).map(([key, a]) => (
+          <Card key={key} onClick={() => navigate('learnArticle', 1, { id: key })} label={a.title} className="flex items-center gap-3">
             <IconBubble size={50} tone="glass">{a.icon}</IconBubble>
             <div className="flex-1">
               <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{a.title}</p>
@@ -27,7 +27,7 @@ export function LearnHome() {
 
 export function LearnArticle({ id }) {
   const { back } = useApp();
-  const a = Object.values(ARTICLES).find((x) => x.title === id) || ARTICLES.investing;
+  const a = ARTICLES[id] || ARTICLES.investing;
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="" onBack={back} />
