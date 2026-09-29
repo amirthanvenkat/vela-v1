@@ -211,3 +211,37 @@ test('guards: onboarding and unknown routes', async ({ page }) => {
   await expect(page).toHaveURL(/#\/$/);
   await expect(root(page)).toContainText('VELA');
 });
+
+// Installable app and offline support
+test('web app manifest and icons are served', async ({ page, request }) => {
+  await page.goto('./');
+  const href = await page.locator('link[rel="manifest"]').getAttribute('href');
+  const manifest = await (await request.get(href)).json();
+  expect(manifest).toMatchObject({ short_name: 'VELA', display: 'standalone', start_url: './', scope: './' });
+  expect(manifest.icons.some((i) => i.purpose === 'maskable')).toBe(true);
+  for (const icon of manifest.icons) {
+    const res = await request.get(icon.src);
+    expect(res.ok(), icon.src).toBe(true);
+  }
+  expect((await request.get(await page.locator('link[rel="apple-touch-icon"]').getAttribute('href'))).ok()).toBe(true);
+});
+
+test('works offline after the first visit', async ({ page, context }) => {
+  await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('vela:v1', JSON.stringify({ onboarded: true, name: 'Offline Olly' })));
+  // Wait until the service worker has installed, precached the app and taken control of the page.
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
+    }
+  });
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(root(page)).toContainText('Hi Offline Olly');
+  await tap(page, 'Learn');
+  await page.getByRole('button', { name: 'What is risk?' }).click();
+  await expect(root(page)).toContainText('Risk is a word for how bumpy the ride might be.');
+  await context.setOffline(false);
+});

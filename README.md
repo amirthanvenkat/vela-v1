@@ -7,8 +7,10 @@ It is built to be opened on a phone (375px / iPhone viewport) and shared as a si
 
 **Live demo: https://amirthanvenkat.github.io/vela-v1/**
 
-Open that link on your phone for the intended experience. To use it like an app, open your
-browser menu and choose "Add to Home Screen"; it will launch full screen from its own icon.
+Open that link on your phone for the intended experience. VELA is an installable web app: choose
+**Add to Home Screen** (Safari's Share menu on iPhone) or **Install app** (Chrome on Android and
+desktop), and it launches full screen from its own icon. After the first visit it also works
+offline.
 On a laptop or desktop it opens inside an iPhone-style frame:
 
 ![VELA inside the desktop phone frame](docs/screenshots/00-desktop-frame.png)
@@ -43,6 +45,7 @@ fills the screen. Add `?frame=0` (or `&frame=0` in a demo link) to turn the fram
 | `npm run lint` | ESLint |
 | `npm test` | Unit tests (Vitest) for the formatting and deep-link helpers |
 | `npm run e2e` | End-to-end tests (Playwright) against the production build |
+| `npm run icons` | Re-render the PNG app icons from `public/icon.svg` |
 
 The first time you run the end-to-end tests, install the browser with
 `npx playwright install chromium`.
@@ -108,6 +111,11 @@ between screens inside the app.
   right; Back and Forward use the router's history position to pick the direction. Returning users
   skip onboarding, and a screen opened directly still has a working Back button (it goes up to
   its tab).
+- Installable and offline: [`vite-plugin-pwa`](https://vite-pwa-org.netlify.app/) generates the web
+  app manifest and a service worker that precaches the whole build, so after the first visit
+  VELA opens with no connection (Google Fonts are cached as they load). A new version downloads
+  in the background and is used from the next launch; nothing reloads while you're mid-flow.
+  The icon is `public/icon.svg` (full-bleed, so it also works as a maskable Android icon).
 - Themes are driven by CSS variables, so every screen restyles instantly.
 - The "3D glass" icons are approximated with glossy gradient bubbles wrapping an emoji.
 - The bottom navigation has 5 line icons (Home, Save, Invest, Learn, You), with "You" opening Settings.
