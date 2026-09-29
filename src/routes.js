@@ -1,3 +1,5 @@
+import { matchPath } from 'react-router';
+
 // Which tab a screen belongs to (drives bottom nav highlight & presence).
 export const SCREEN_TAB = {
   home: 'home',
@@ -20,3 +22,40 @@ export const TABS = [
   { key: 'learn',  label: 'Learn' },
   { key: 'settings', label: 'You' },
 ];
+
+// URL for each screen (hash routes, e.g. #/save/add). Tab roots keep their pre-router URLs.
+export const SCREEN_PATHS = {
+  splash: '/',
+  welcome: '/welcome',
+  risk: '/risk',
+  name: '/name',
+  gardenIntro: '/garden-intro',
+  home: '/home',
+  save: '/save',
+  addMoney: '/save/add',
+  setGoal: '/save/goal',
+  saveConfirm: '/save/done',
+  invest: '/invest',
+  investConfirm: '/invest/plant',
+  investSuccess: '/invest/done',
+  learn: '/learn',
+  learnArticle: '/learn/:id',
+  settings: '/settings',
+  retakeRisk: '/settings/style',
+};
+
+// pathFor('learnArticle', { id: 'risk' }) -> '/learn/risk'; pathFor('saveConfirm', { amt: 40 }) -> '/save/done?amt=40'
+export function pathFor(screen, params = {}) {
+  let path = (SCREEN_PATHS[screen] || '/home').replace(':id', encodeURIComponent(params.id ?? ''));
+  if (params.amt != null) path += '?amt=' + encodeURIComponent(params.amt);
+  return path;
+}
+
+// '/learn/risk' -> { screen: 'learnArticle', params: { id: 'risk' } }; unknown paths -> null
+export function screenFromPath(pathname) {
+  for (const [screen, path] of Object.entries(SCREEN_PATHS)) {
+    const m = matchPath({ path, end: true }, pathname);
+    if (m) return { screen, params: m.params };
+  }
+  return null;
+}

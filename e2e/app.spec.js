@@ -142,3 +142,72 @@ test('no confetti with reduced motion', async ({ page }) => {
   await page.waitForTimeout(800);
   await expect(page.getByTestId('confetti')).toHaveCount(0);
 });
+
+// Routing (React Router, hash URLs)
+const onboard = async (page) => {
+  await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('vela:v1', JSON.stringify({ onboarded: true })));
+};
+
+test('old #screen= links are rewritten to routes', async ({ page }) => {
+  await page.goto('./#screen=investSuccess&flowers=1&amt=50');
+  await expect(root(page)).toContainText('SGD 50.00 invested');
+  await expect(page).toHaveURL(/#\/invest\/done\?demo&amt=50&flowers=1$/);
+
+  await page.goto('./?b=1#screen=learnArticle&id=' + encodeURIComponent('What is investing?'));
+  await expect(page).toHaveURL(/#\/learn\/investing\?demo$/);
+  await expect(root(page)).toContainText('Investing means using some of your money');
+});
+
+test('new-style demo links seed state', async ({ page }) => {
+  await page.goto('./#/save?demo&goal=' + encodeURIComponent('Trip to Japan:1000'));
+  await expect(root(page)).toContainText('Saving for Trip to Japan');
+  await expect(root(page)).toContainText('32% of SGD 1,000.00');
+});
+
+test('every screen has a URL that survives a reload', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?r=1#/save/goal');
+  await expect(root(page)).toContainText('What are you saving for?');
+  await page.reload();
+  await expect(root(page)).toContainText('What are you saving for?');
+  await page.goto('./?r=2#/learn/money');
+  await expect(root(page)).toContainText('Where does my money go?');
+});
+
+test('browser back and forward walk the app history', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?h=1#/home');
+  await tap(page, 'Learn');
+  await page.getByRole('button', { name: 'What is risk?' }).click();
+  await expect(page).toHaveURL(/#\/learn\/risk$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/learn$/);
+  await expect(root(page)).toContainText('Three short reads');
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/home$/);
+  await page.goForward();
+  await expect(root(page)).toContainText('Three short reads');
+});
+
+test('in-app Back on a directly opened screen goes up to its tab', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?d=1#/save/add');
+  await expect(root(page)).toContainText('How much do you want to save?');
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page).toHaveURL(/#\/save$/);
+  await expect(root(page)).toContainText('Savings Pot');
+});
+
+test('guards: onboarding and unknown routes', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?g=1#/welcome');
+  await expect(page).toHaveURL(/#\/home$/);
+  await page.goto('./?g=2#/no/such/screen');
+  await expect(page).toHaveURL(/#\/home$/);
+
+  await page.evaluate(() => localStorage.clear());
+  await page.goto('./?g=3#/invest');
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(root(page)).toContainText('VELA');
+});

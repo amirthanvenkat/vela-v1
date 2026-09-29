@@ -32,7 +32,7 @@ npm run dev        # http://localhost:5777/ with hot reload
 On a desktop browser (at least 600px wide and 640px tall) the app renders inside an iPhone-style
 frame with a Dynamic Island, status bar and home indicator. The frame scales down to fit shorter
 windows, and the screen inside always stays at 390x844, so layouts never reflow. On a phone it
-fills the screen. Add `?frame=0` (or `&frame=0` in a deep link) to turn the frame off, or
+fills the screen. Add `?frame=0` (or `&frame=0` in a demo link) to turn the frame off, or
 `frame=1` to force it on.
 
 | Command | What it does |
@@ -67,9 +67,9 @@ A [Vite](https://vite.dev/) + React 18 app:
 ```
 src/
   main.jsx            entry point
-  App.jsx             app state, navigation stack and browser history
+  App.jsx             app state, routes and screen transitions
   data.js             risk styles, Learn articles, themes
-  routes.js           which screens belong to which tab
+  routes.js           URL for each screen, and which tab it belongs to
   context.js          app context (useApp)
   lib/                formatting and deep-link/boot helpers (with unit tests)
   components/         UI primitives, garden, bottom nav, overlays, phone frame
@@ -99,19 +99,25 @@ garden, goal and theme, and returns you to the tab you were on. **You > Reset de
 and starts again from the splash screen. The browser back button (and Android back gesture) moves
 between screens inside the app.
 
-## Design notes and one substitution
+## Design notes
 
-- Router: the brief lists React Router DOM. The app uses a small custom stack router instead (a
-  screen stack mirrored into browser history, plus Framer Motion's `AnimatePresence` for the
-  left/right slide transitions). It started as a single HTML file with no bundler; now that the app
-  is a Vite project, moving to `react-router-dom` is a possible next step.
+- Routing uses [React Router](https://reactrouter.com/) 7 with hash URLs, so every screen has an
+  address that works on GitHub Pages and survives a refresh: `#/home`, `#/save/add`,
+  `#/save/goal`, `#/invest/plant`, `#/learn/risk`, `#/settings/style` and so on (the full table is
+  `SCREEN_PATHS` in `src/routes.js`). Framer Motion's `AnimatePresence` slides screens left or
+  right; Back and Forward use the router's history position to pick the direction. Returning users
+  skip onboarding, and a screen opened directly still has a working Back button (it goes up to
+  its tab).
 - Themes are driven by CSS variables, so every screen restyles instantly.
 - The "3D glass" icons are approximated with glossy gradient bubbles wrapping an emoji.
 - The bottom navigation has 5 line icons (Home, Save, Invest, Learn, You), with "You" opening Settings.
 - Tappable cards work with the keyboard (Tab, then Enter or Space), and animations follow the
   system "reduce motion" setting (no confetti or slides when it is on).
 - The copy avoids financial jargon. Where a term is needed, it is followed by a plain-language line.
-- Any screen can be opened directly with a hash deep link, which is how the docs screenshots
-  are captured. For example `#screen=home`, `#screen=investSuccess&flowers=1&amt=50`,
-  `#screen=save&goal=Trip%20to%20Japan:1000`, or `#screen=settings&theme=dark&frame=0`.
-  Deep links always start from the demo state: they don't read or overwrite saved progress.
+- Demo links open any screen with seeded demo state, which is how the docs screenshots are
+  captured: add `?demo` to a route, plus any of `name`, `flowers`, `amt`, `goal`, `theme`, `risk`
+  and `frame`. For example `#/home?demo`, `#/invest/done?demo&flowers=1&amt=50`,
+  `#/save?demo&goal=Trip%20to%20Japan:1000`, or `#/settings?demo&theme=dark&frame=0`.
+  Demo links always start from the demo state: they don't read or overwrite saved progress.
+  Older links in the `#screen=investSuccess&flowers=1` form still work; they are rewritten to the
+  route form on load.
