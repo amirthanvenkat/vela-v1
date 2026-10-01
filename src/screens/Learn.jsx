@@ -9,7 +9,7 @@ export function LearnHome() {
     <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Learn" />
       <div className="space-y-3 px-5">
-        <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Three short reads, in plain language.</p>
+        <p className="text-[14px]" style={{ color: 'var(--subtle)' }}>Six short reads, in plain language.</p>
         {Object.entries(ARTICLES).map(([key, a]) => (
           <Card key={key} onClick={() => navigate('learnArticle', 1, { id: key })} label={a.title} className="flex items-center gap-3">
             <IconBubble size={50} tone="glass">{a.icon}</IconBubble>

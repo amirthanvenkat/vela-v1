@@ -6,6 +6,7 @@ import { PhoneFrame, useFrameMode } from './components/PhoneFrame';
 import { AppCtx, useApp } from './context';
 import { FLOWERS, RISKS, THEMES } from './data';
 import { BOOT, INSTANT, STORE_KEY, SAVED, bootGoal, seedActivity } from './lib/boot';
+import { demoFlowers, normalizeFlowers } from './lib/garden';
 import { SCREEN_TAB, ONBOARDING, NAV_HIDDEN, DARK_TOP, SCREEN_PATHS, pathFor, screenFromPath } from './routes';
 import { Home } from './screens/Home';
 import { InvestHome, InvestConfirm, InvestSuccess } from './screens/Invest';
@@ -53,13 +54,14 @@ function renderScreen(screen, params) {
 
 function App() {
   const S = SAVED || {};
-  const bootFlowers = FLOWERS.slice(0, parseInt(BOOT.flowers, 10) || 0);
+  const bootFlowers = demoFlowers(FLOWERS, parseInt(BOOT.flowers, 10) || 0,
+    (BOOT.ages || '').split(',').filter(Boolean).map(Number).filter((d) => d >= 0), Date.now());
   // Persistent app state (mocked demo data, optionally seeded via BOOT deep link)
   const [name, setName] = useState(S.name || BOOT.name || 'Maya');
   const [balance, setBalance] = useState(S.balance ?? 1240.0);
   const [savings, setSavings] = useState(S.savings ?? 320.0);
   const [risk, setRisk] = useState(RISKS[S.risk] ? S.risk : RISKS[BOOT.risk] ? BOOT.risk : 'fox');
-  const [flowers, setFlowers] = useState(S.flowers || bootFlowers);
+  const [flowers, setFlowers] = useState(() => (S.flowers ? normalizeFlowers(S.flowers) : bootFlowers));
   const [invested, setInvested] = useState(S.invested ?? bootFlowers.length * 50);
   const [theme, setTheme] = useState(THEMES[S.theme] ? S.theme : THEMES[BOOT.theme] ? BOOT.theme : 'light');
   const [goal, setGoal] = useState(S.goal !== undefined ? S.goal : bootGoal());
@@ -125,7 +127,7 @@ function App() {
     log('save', 'Moved to your Savings Pot', amt);
   }, []);
   const plantFlower = useCallback((amt) => {
-    setFlowers((f) => [...f, FLOWERS[f.length % FLOWERS.length]]);
+    setFlowers((f) => [...f, { kind: FLOWERS[f.length % FLOWERS.length], plantedAt: Date.now() }]);
     setBalance((b) => b - amt); setInvested((i) => i + amt);
     log('invest', 'Planted a flower', amt);
   }, []);

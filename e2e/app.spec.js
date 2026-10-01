@@ -94,7 +94,7 @@ test('tappable cards work from the keyboard', async ({ page }) => {
   await page.goto('./#screen=home');
   await page.getByRole('button', { name: 'Learn the basics' }).focus();
   await page.keyboard.press('Enter');
-  await expect(root(page)).toContainText('Three short reads');
+  await expect(root(page)).toContainText('Six short reads');
 });
 
 test('deep links ignore and keep saved progress', async ({ page }) => {
@@ -183,11 +183,11 @@ test('browser back and forward walk the app history', async ({ page }) => {
   await expect(page).toHaveURL(/#\/learn\/risk$/);
   await page.goBack();
   await expect(page).toHaveURL(/#\/learn$/);
-  await expect(root(page)).toContainText('Three short reads');
+  await expect(root(page)).toContainText('Six short reads');
   await page.goBack();
   await expect(page).toHaveURL(/#\/home$/);
   await page.goForward();
-  await expect(root(page)).toContainText('Three short reads');
+  await expect(root(page)).toContainText('Six short reads');
 });
 
 test('in-app Back on a directly opened screen goes up to its tab', async ({ page }) => {
@@ -244,4 +244,64 @@ test('works offline after the first visit', async ({ page, context }) => {
   await page.getByRole('button', { name: 'What is risk?' }).click();
   await expect(root(page)).toContainText('Risk is a word for how bumpy the ride might be.');
   await context.setOffline(false);
+});
+
+// Garden growth and Learn articles
+test('planting adds a seedling that will bloom in three days', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?grow=1#/invest');
+  await tap(page, 'Plant a flower');
+  await tap(page, 'Invest SGD 50.00');
+  await expect(root(page)).toContainText('Your first flower is planted.');
+  await tap(page, 'See my garden');
+  await tap(page, 'Invest');
+  await expect(page.locator('[title="Seedling, blooms in 3 days"]')).toHaveCount(1);
+  await expect(root(page)).toContainText('Next bloom in about 3 days');
+});
+
+test('an open app shows a flower growing as the days pass', async ({ page }) => {
+  // Fake clock from the start, so the garden's once-a-minute refresh runs on it too.
+  await page.clock.install({ time: new Date('2026-10-01T09:00:00') });
+  await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('vela:v1', JSON.stringify({
+    onboarded: true, flowers: [{ kind: '🌻', plantedAt: Date.now() }],
+  })));
+  await page.goto('./?clock=1#/invest');
+  await expect(page.locator('[title="Seedling, blooms in 3 days"]')).toHaveCount(1);
+
+  await page.clock.fastForward('25:00:00');
+  await expect(page.locator('[title="Sprout, blooms in 2 days"]')).toHaveCount(1);
+  await page.clock.fastForward('24:00:00');
+  await expect(page.locator('[title="Bud, blooms in 1 day"]')).toHaveCount(1);
+  await page.clock.fastForward('24:00:00');
+  await expect(page.locator('[title="In bloom"]')).toHaveCount(1);
+  await expect(root(page)).not.toContainText('Next bloom');
+});
+
+test('gardens saved before growth existed stay in bloom', async ({ page }) => {
+  await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('vela:v1', JSON.stringify({ onboarded: true, flowers: ['🌸', '🌺'] })));
+  await page.goto('./?old=1#/home');
+  await expect(root(page)).toContainText('2 blooms and growing.');
+  await expect(page.locator('[title="In bloom"]')).toHaveCount(2);
+});
+
+test('six Learn articles, with related reads on Save and Invest', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?learn=1#/learn');
+  for (const title of ['What is investing?', 'What is risk?', 'Where does my money go?', 'Small amounts grow', 'Rainy-day fund first', 'Dips are normal']) {
+    await expect(page.getByRole('button', { name: title })).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Small amounts grow' }).click();
+  await expect(root(page)).toContainText('about SGD 64,000');
+
+  await page.goto('./?learn=2#/save');
+  await page.getByRole('button', { name: /rainy-day fund comes first/ }).click();
+  await expect(page).toHaveURL(/#\/learn\/rainyday$/);
+  await expect(root(page)).toContainText('three to six months');
+
+  await page.goto('./?learn=3#/invest');
+  await page.getByRole('button', { name: /Dips are normal/ }).click();
+  await expect(page).toHaveURL(/#\/learn\/dips$/);
+  await expect(root(page)).toContainText('Checking less often helps.');
 });

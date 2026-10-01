@@ -17,7 +17,7 @@ On a laptop or desktop it opens inside an iPhone-style frame:
 
 | Home | First investment | Your garden |
 |---|---|---|
-| ![Home dashboard](docs/screenshots/04-home.png) | ![First bloom success screen](docs/screenshots/08-invest-success.png) | ![Garden introduction](docs/screenshots/03-garden-intro.png) |
+| ![Home dashboard](docs/screenshots/04-home.png) | ![First flower planted success screen](docs/screenshots/08-invest-success.png) | ![Garden introduction](docs/screenshots/03-garden-intro.png) |
 
 Want to see how it feels to use? Read [Maya's user story](docs/user-story-maya.md), a
 screen-by-screen walkthrough from the point of view of a first-salary user.
@@ -86,8 +86,8 @@ e2e/                  Playwright end-to-end tests
 2. Home: greeting, balance card, garden tile, quick actions, and a 5-tab bottom navigation bar
 3. Home extras: a "Recent" activity list and a notifications sheet behind the bell (with an unread dot)
 4. Save: savings pot, set or edit a goal (name + target, with a progress bar), add money with preset chips, then a confirmation screen
-5. Invest: garden, choose an amount (SGD 20 / 50 / 100 or your own, minimum SGD 10), then a "First bloom" moment where the garden springs up, a flower opens, and coral and leaf confetti falls
-6. Learn: three jargon-free explainer cards that open a simple article reader
+5. Invest: garden, choose an amount (SGD 20 / 50 / 100 or your own, minimum SGD 10), then a "first flower planted" moment where the garden springs up, a seedling marked "Just planted" pops in, and coral and leaf confetti falls. Each flower then grows a stage a day (seedling, sprout, bud) and is in full bloom after three days; the Invest screen says when the next bloom is due
+6. Learn: six jargon-free reads (what investing is, risk, where your money goes, how small amounts grow, a rainy-day fund first, and why dips are normal). Save and Invest each link to the read that fits
 7. Settings: Light, Dark, and Moss themes, edit name, retake the risk choice, an About section, and Reset demo
 
 Saving and investing can't take more than your balance; the screen explains why the button is
@@ -116,6 +116,9 @@ between screens inside the app.
   VELA opens with no connection (Google Fonts are cached as they load). A new version downloads
   in the background and is used from the next launch; nothing reloads while you're mid-flow.
   The icon is `public/icon.svg` (full-bleed, so it also works as a maskable Android icon).
+- The garden grows by time, not by market prices: a flower blooms three days after it's planted,
+  whatever the market does. It rewards the habit, never shows a fake return, and a bad week
+  can't wilt it. The growth rules live in `src/lib/garden.js`.
 - Themes are driven by CSS variables, so every screen restyles instantly.
 - The "3D glass" icons are approximated with glossy gradient bubbles wrapping an emoji.
 - The bottom navigation has 5 line icons (Home, Save, Invest, Learn, You), with "You" opening Settings.
@@ -123,7 +126,8 @@ between screens inside the app.
   system "reduce motion" setting (no confetti or slides when it is on).
 - The copy avoids financial jargon. Where a term is needed, it is followed by a plain-language line.
 - Demo links open any screen with seeded demo state, which is how the docs screenshots are
-  captured: add `?demo` to a route, plus any of `name`, `flowers`, `amt`, `goal`, `theme`, `risk`
+  captured: add `?demo` to a route, plus any of `name`, `flowers` (that many in bloom), `ages`
+  (growing flowers planted that many days ago, e.g. `ages=0,1,2`), `amt`, `goal`, `theme`, `risk`
   and `frame`. For example `#/home?demo`, `#/invest/done?demo&flowers=1&amt=50`,
   `#/save?demo&goal=Trip%20to%20Japan:1000`, or `#/settings?demo&theme=dark&frame=0`.
   Demo links always start from the demo state: they don't read or overwrite saved progress.

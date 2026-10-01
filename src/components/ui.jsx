@@ -114,3 +114,15 @@ export function Hint({ children, warn = false }) {
       style={{ color: warn ? '#FF6B6B' : 'var(--subtle)' }}>{children}</p>
   );
 }
+
+// A small "related read" link to a Learn article, shown on the screen where the topic comes up.
+export function ReadLink({ icon, title, onClick }) {
+  return (
+    <button onClick={onClick} className="flex w-full items-center gap-2.5 rounded-xl px-3.5 py-3 text-left"
+      style={{ background: 'var(--soft)', color: 'var(--text)' }}>
+      <span aria-hidden="true" className="text-[18px]">{icon}</span>
+      <span className="flex-1 text-[13px]"><span style={{ color: 'var(--subtle)' }}>Read: </span>{title}</span>
+      <span aria-hidden="true" style={{ color: 'var(--subtle)' }}>→</span>
+    </button>
+  );
+}

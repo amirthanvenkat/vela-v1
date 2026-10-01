@@ -113,7 +113,7 @@ export function GardenIntro() {
         </motion.div>
         <h1 className="font-serif text-[34px] font-semibold text-white">Meet your garden.</h1>
         <p className="mt-4 max-w-[290px] text-[15px] leading-relaxed text-white/90">
-          Every time you invest, a new flower blooms. The more you put in over time, the more your garden grows.
+          Every time you invest, you plant a new flower that blooms over a few days. The more you put in over time, the more your garden grows.
         </p>
       </div>
       <Button variant="navy" onClick={finishOnboarding}>Start growing</Button>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { IconBubble, Button, Card, ScreenHeader, AmountInput, Hint } from '../components/ui';
+import { IconBubble, Button, Card, ScreenHeader, AmountInput, Hint, ReadLink } from '../components/ui';
 import { useApp } from '../context';
 import { fmt } from '../lib/format';
 
@@ -50,8 +50,9 @@ export function SaveHome() {
           <span className="text-coral text-[20px]" aria-hidden="true">{goal ? '✎' : '＋'}</span>
         </Card>
       </div>
-      <div className="px-5 pt-5">
+      <div className="space-y-3 px-5 pt-5">
         <Button onClick={() => navigate('addMoney', 1)}>Add Money</Button>
+        <ReadLink icon="☔" title="Why a rainy-day fund comes first" onClick={() => navigate('learnArticle', 1, { id: 'rainyday' })} />
       </div>
     </div>
   );
