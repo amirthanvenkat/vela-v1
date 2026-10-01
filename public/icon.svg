@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background so the same art works as a maskable icon; the flower sits inside the
+       central safe zone (radius ~205px) that Android keeps when it crops icons to its own shape. -->
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="20%" r="95%">
+      <stop offset="0" stop-color="#2A4470"/>
+      <stop offset="1" stop-color="#1B2D4F"/>
+    </radialGradient>
+    <radialGradient id="petal" cx="50%" cy="25%" r="80%">
+      <stop offset="0" stop-color="#FFB3A7"/>
+      <stop offset="1" stop-color="#FF6B6B"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M256 300 C 256 350 250 380 240 410" stroke="#4CAF82" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M246 372 C 214 350 186 352 168 366 C 190 392 220 392 246 372 Z" fill="#4CAF82"/>
+  <g transform="translate(256 226)" fill="url(#petal)">
+    <ellipse rx="44" ry="78" cy="-62"/>
+    <ellipse rx="44" ry="78" cy="-62" transform="rotate(72)"/>
+    <ellipse rx="44" ry="78" cy="-62" transform="rotate(144)"/>
+    <ellipse rx="44" ry="78" cy="-62" transform="rotate(216)"/>
+    <ellipse rx="44" ry="78" cy="-62" transform="rotate(288)"/>
+  </g>
+  <circle cx="256" cy="226" r="38" fill="#FFF8F5"/>
+  <circle cx="256" cy="226" r="20" fill="#FFD27A"/>
+</svg>
