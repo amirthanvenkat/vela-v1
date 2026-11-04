@@ -7,12 +7,14 @@ import { AppCtx, useApp } from './context';
 import { FLOWERS, RISKS, THEMES } from './data';
 import { BOOT, INSTANT, STORE_KEY, SAVED, bootGoal, seedActivity } from './lib/boot';
 import { demoFlowers, normalizeFlowers } from './lib/garden';
+import { flowersToRemove, roundMoney } from './lib/withdraw';
 import { SCREEN_TAB, ONBOARDING, NAV_HIDDEN, DARK_TOP, SCREEN_PATHS, pathFor, screenFromPath } from './routes';
 import { Home } from './screens/Home';
 import { InvestHome, InvestConfirm, InvestSuccess } from './screens/Invest';
 import { LearnHome, LearnArticle } from './screens/Learn';
 import { Splash, Welcome, RiskQuestion, NameInput, GardenIntro } from './screens/Onboarding';
 import { SaveHome, AddMoney, SetGoal, SaveConfirm } from './screens/Save';
+import { Withdraw, WithdrawDone } from './screens/Withdraw';
 import { Settings } from './screens/Settings';
 
 // One route per screen. `search` is passed in (not read from the live URL) so a screen that is
@@ -42,6 +44,10 @@ function renderScreen(screen, params) {
     case 'addMoney': return <AddMoney />;
     case 'setGoal': return <SetGoal />;
     case 'saveConfirm': return <SaveConfirm amt={params.amt} />;
+    case 'withdrawSavings': return <Withdraw from="savings" />;
+    case 'withdrawSavingsDone': return <WithdrawDone from="savings" amt={params.amt} />;
+    case 'withdrawInvest': return <Withdraw from="garden" />;
+    case 'withdrawInvestDone': return <WithdrawDone from="garden" amt={params.amt} />;
     case 'invest': return <InvestHome />;
     case 'investConfirm': return <InvestConfirm />;
     case 'investSuccess': return <InvestSuccess amt={params.amt} />;
@@ -123,14 +129,26 @@ function App() {
   const log = (type, label, amount) =>
     setActivity((a) => [{ id: Date.now() + '-' + a.length, type, label, amount, at: Date.now() }, ...a].slice(0, 30));
   const addToSavings = useCallback((amt) => {
-    setSavings((s) => s + amt); setBalance((b) => b - amt);
+    setSavings((s) => roundMoney(s + amt)); setBalance((b) => roundMoney(b - amt));
     log('save', 'Moved to your Savings Pot', amt);
   }, []);
   const plantFlower = useCallback((amt) => {
     setFlowers((f) => [...f, { kind: FLOWERS[f.length % FLOWERS.length], plantedAt: Date.now() }]);
-    setBalance((b) => b - amt); setInvested((i) => i + amt);
+    setBalance((b) => roundMoney(b - amt)); setInvested((i) => roundMoney(i + amt));
     log('invest', 'Planted a flower', amt);
   }, []);
+  // Taking money out: it goes back to the balance straight away.
+  const withdrawSavings = useCallback((amt) => {
+    setSavings((s) => roundMoney(s - amt)); setBalance((b) => roundMoney(b + amt));
+    log('withdraw', 'Taken out of your Savings Pot', amt);
+  }, []);
+  const withdrawInvested = useCallback((amt) => {
+    // The newest flowers leave first (see flowersToRemove for the rule).
+    const leaving = flowersToRemove(flowers.length, amt, invested);
+    setFlowers((f) => f.slice(0, f.length - leaving));
+    setInvested((i) => roundMoney(i - amt)); setBalance((b) => roundMoney(b + amt));
+    log('withdraw', 'Taken out of your garden', amt);
+  }, [flowers.length, invested]);
   const setGoalTo = useCallback((g) => {
     setGoal(g);
     if (g) log('goal', `Goal set: ${g.name}`, g.target);
@@ -142,7 +160,7 @@ function App() {
   }, []);
 
   const ctx = {
-    name, setName, balance, savings, addToSavings, risk, setRisk, flowers, plantFlower, invested,
+    name, setName, balance, savings, addToSavings, withdrawSavings, risk, setRisk, flowers, plantFlower, invested, withdrawInvested,
     goal, setGoalTo, activity, seenAt, markSeen, overlayEl, theme, setTheme, onboarded, current: { screen: current, tab },
     navigate, back, goTab, resetTo, finishOnboarding, resetDemo,
   };

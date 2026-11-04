@@ -3,16 +3,17 @@ import { matchPath } from 'react-router';
 // Which tab a screen belongs to (drives bottom nav highlight & presence).
 export const SCREEN_TAB = {
   home: 'home',
-  save: 'save', addMoney: 'save', saveConfirm: 'save', setGoal: 'save',
-  invest: 'invest', investConfirm: 'invest', investSuccess: 'invest',
+  save: 'save', addMoney: 'save', saveConfirm: 'save', setGoal: 'save', withdrawSavings: 'save', withdrawSavingsDone: 'save',
+  invest: 'invest', investConfirm: 'invest', investSuccess: 'invest', withdrawInvest: 'invest', withdrawInvestDone: 'invest',
   learn: 'learn', learnArticle: 'learn',
   settings: 'settings', retakeRisk: 'settings',
 };
 export const ONBOARDING = ['splash', 'welcome', 'risk', 'name', 'gardenIntro'];
 // Modal-style flow screens: they own the full height (their own back/exit CTA), no bottom nav.
-export const NAV_HIDDEN = ['addMoney', 'saveConfirm', 'setGoal', 'investConfirm', 'investSuccess', 'retakeRisk'];
+export const NAV_HIDDEN = ['addMoney', 'saveConfirm', 'setGoal', 'investConfirm', 'investSuccess', 'retakeRisk',
+  'withdrawSavings', 'withdrawSavingsDone', 'withdrawInvest', 'withdrawInvestDone'];
 // Screens with a dark or coloured top edge get a light status bar in the phone frame.
-export const DARK_TOP = ['splash', 'gardenIntro', 'home', 'saveConfirm', 'investSuccess'];
+export const DARK_TOP = ['splash', 'gardenIntro', 'home', 'saveConfirm', 'investSuccess', 'withdrawSavingsDone', 'withdrawInvestDone'];
 
 // Bottom navigation tabs (the "You" tab opens Settings).
 export const TABS = [
@@ -35,9 +36,13 @@ export const SCREEN_PATHS = {
   addMoney: '/save/add',
   setGoal: '/save/goal',
   saveConfirm: '/save/done',
+  withdrawSavings: '/save/withdraw',
+  withdrawSavingsDone: '/save/withdrawn',
   invest: '/invest',
   investConfirm: '/invest/plant',
   investSuccess: '/invest/done',
+  withdrawInvest: '/invest/withdraw',
+  withdrawInvestDone: '/invest/withdrawn',
   learn: '/learn',
   learnArticle: '/learn/:id',
   settings: '/settings',

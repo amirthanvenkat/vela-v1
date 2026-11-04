@@ -2,13 +2,14 @@ import { IconBubble } from './ui';
 import { fmt, when } from '../lib/format';
 
 /* ---------- Activity ---------- */
-export const ACTIVITY_ICON = { deposit: '🏦', save: '💰', invest: '🌸', goal: '🎯' };
+export const ACTIVITY_ICON = { deposit: '🏦', save: '💰', invest: '🌸', goal: '🎯', withdraw: '💸' };
 
 export function ActivityRow({ item }) {
-  const signed = item.type === 'deposit' ? '+' : item.type === 'goal' ? '' : '−';
+  // Money coming back to the balance (salary, withdrawals) shows as +; money moving out of it as −.
+  const signed = item.type === 'deposit' || item.type === 'withdraw' ? '+' : item.type === 'goal' ? '' : '−';
   return (
     <div className="flex items-center gap-3 py-2.5">
-      <IconBubble size={38} tone={item.type === 'invest' ? 'leaf' : item.type === 'deposit' ? 'navy' : 'coral'}>
+      <IconBubble size={38} tone={item.type === 'invest' ? 'leaf' : item.type === 'deposit' || item.type === 'withdraw' ? 'navy' : 'coral'}>
         {ACTIVITY_ICON[item.type] || '•'}
       </IconBubble>
       <div className="min-w-0 flex-1">

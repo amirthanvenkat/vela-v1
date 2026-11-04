@@ -363,3 +363,69 @@ test('a goal without a date offers to add one; no goal, no tip', async ({ page }
   await expect(root(page)).toContainText('How much do you want to invest?');
   await expect(tip(page)).toHaveCount(0);
 });
+
+// Withdrawals
+test('take money out of the Savings Pot', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?w=1#/save');
+  await tap(page, 'Take money out');
+  await page.getByLabel(/Amount to take out of your Savings Pot/).fill('400');
+  await expect(root(page)).toContainText("That's more than you have. There's SGD 320.00 in your Savings Pot.");
+  await expect(page.getByRole('button', { name: 'Take out' })).toBeDisabled();
+
+  await page.getByLabel(/Amount to take out of your Savings Pot/).fill('40');
+  await tap(page, 'Take out SGD 40.00');
+  await expect(root(page)).toContainText('SGD 40.00 is back in your balance.');
+
+  // Back can't repeat the withdrawal
+  await page.goBack();
+  await expect(root(page)).toContainText('280.00');
+  await expect(root(page)).not.toContainText('How much do you want to take out');
+
+  await tap(page, 'Home');
+  await expect(root(page)).toContainText('1,280.00');
+  await expect(root(page)).toContainText('Taken out of your Savings Pot');
+  await expect(root(page)).toContainText('+SGD 40.00');
+});
+
+test('take money out of the garden, and the garden follows', async ({ page }) => {
+  await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('vela:v1', JSON.stringify({
+    onboarded: true, invested: 150, flowers: ['🌸', '🌺', '🌻'],
+  })));
+  await page.goto('./?w=2#/invest');
+  await tap(page, 'Take money out');
+  await page.getByLabel(/Amount to take out of your garden/).fill('60');
+  await expect(root(page)).toContainText('2 flowers will go, newest first.');
+  await expect(page.locator('[title^="Leaving"]')).toHaveCount(2);
+  await expect(root(page)).toContainText('Usually arrives in 1–3 working days');
+  await tap(page, 'Take out SGD 60.00');
+  await expect(root(page)).toContainText("Your garden keeps growing with what's left.");
+
+  await tap(page, 'Back to Home');
+  await tap(page, 'Invest');
+  await expect(root(page)).toContainText('SGD 90.00');
+  await expect(page.locator('[title="In bloom"]')).toHaveCount(1);
+
+  // Take it all: every flower goes, and the button disappears
+  await tap(page, 'Take money out');
+  await tap(page, 'Take it all');
+  await expect(root(page)).toContainText('All your flowers will go. Your first seed stays.');
+  await tap(page, 'Take out SGD 90.00');
+  await expect(root(page)).toContainText("Your first seed is still here whenever you're ready.");
+  await tap(page, 'Back to Home');
+  await tap(page, 'Invest');
+  await expect(page.locator('[title="In bloom"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Take money out' })).toHaveCount(0);
+});
+
+test('no Take money out button when there is nothing to take', async ({ page }) => {
+  await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('vela:v1', JSON.stringify({ onboarded: true, savings: 0, invested: 0 })));
+  await page.goto('./?w=3#/save');
+  await expect(root(page)).toContainText('Savings Pot');
+  await expect(page.getByRole('button', { name: 'Take money out' })).toHaveCount(0);
+  await page.goto('./?w=4#/invest');
+  await expect(root(page)).toContainText('Your Garden');
+  await expect(page.getByRole('button', { name: 'Take money out' })).toHaveCount(0);
+});

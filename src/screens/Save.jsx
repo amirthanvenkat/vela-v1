@@ -53,6 +53,7 @@ export function SaveHome() {
       </div>
       <div className="space-y-3 px-5 pt-5">
         <Button onClick={() => navigate('addMoney', 1)}>Add Money</Button>
+        {savings > 0 && <Button variant="outline" onClick={() => navigate('withdrawSavings', 1)}>Take money out</Button>}
         <ReadLink icon="☔" title="Why a rainy-day fund comes first" onClick={() => navigate('learnArticle', 1, { id: 'rainyday' })} />
       </div>
     </div>

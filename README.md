@@ -93,6 +93,14 @@ e2e/                  Playwright end-to-end tests
 Saving and investing can't take more than your balance; the screen explains why the button is
 disabled instead of letting the balance go negative.
 
+**Taking money out.** Save and Invest each have a **Take money out** button (shown when there's
+money to take). You choose an amount, or tap **Take it all**, and it goes back to your balance
+straight away, with no fees and no penalties. Taking money out of the garden removes flowers to
+match, newest first, one per SGD 50 or part of it, and the screen previews which flowers will go
+before you confirm. While some money stays invested, at least one flower stays. Investment
+withdrawals note that in real life they usually take 1–3 working days. The rules live in
+`src/lib/withdraw.js`.
+
 ### Demo state
 
 Maya, SGD 1,240.00 balance, Fox (Balanced) risk choice, a one-seed garden, and SGD 320 in the Savings Pot.
