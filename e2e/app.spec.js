@@ -82,8 +82,20 @@ test('notifications sheet is modal and returns focus', async ({ page }) => {
   await page.getByRole('button', { name: /Notifications/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Notifications' });
   await expect(dialog).toBeVisible();
-  for (let i = 0; i < 12; i++) await page.keyboard.press('Tab');
-  expect(await page.evaluate(() => !!document.activeElement.closest('[role=dialog]'))).toBe(true);
+  // Tab never reaches the screen behind the sheet. (At the end of the tab order, newer Chromium
+  // hands focus to the browser itself, like a native dialog, so focus may also sit on <body>.)
+  let visitedDialog = false;
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('Tab');
+    const where = await page.evaluate(() => {
+      const a = document.activeElement;
+      if (a.closest('[role=dialog]')) return 'dialog';
+      return a === document.body ? 'body' : 'background';
+    });
+    expect(where, `Tab #${i + 1}`).not.toBe('background');
+    visitedDialog ||= where === 'dialog';
+  }
+  expect(visitedDialog).toBe(true);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('button', { name: 'Notifications' })).toBeFocused();
@@ -260,12 +272,14 @@ test('planting adds a seedling that will bloom in three days', async ({ page }) 
 });
 
 test('an open app shows a flower growing as the days pass', async ({ page }) => {
-  // Fake clock from the start, so the garden's once-a-minute refresh runs on it too.
-  await page.clock.install({ time: new Date('2026-10-01T09:00:00') });
+  // Fake clock from the start, so the garden's once-a-minute refresh runs on it too. The flower is
+  // planted at the clock's fixed start time: each new page restarts the fake clock from there.
+  const start = new Date('2026-10-01T09:00:00').getTime();
+  await page.clock.install({ time: start });
   await page.goto('./');
-  await page.evaluate(() => localStorage.setItem('vela:v1', JSON.stringify({
-    onboarded: true, flowers: [{ kind: '🌻', plantedAt: Date.now() }],
-  })));
+  await page.evaluate((plantedAt) => localStorage.setItem('vela:v1', JSON.stringify({
+    onboarded: true, flowers: [{ kind: '🌻', plantedAt }],
+  })), start);
   await page.goto('./?clock=1#/invest');
   await expect(page.locator('[title="Seedling, blooms in 3 days"]')).toHaveCount(1);
 

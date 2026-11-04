@@ -11,6 +11,9 @@ describe('stageIndex / daysUntilBloom', () => {
   });
   it('treats a clock that runs backwards as just planted', () => {
     expect(stageIndex(NOW + DAY, NOW)).toBe(0);
+    expect(daysUntilBloom(NOW + 1, NOW)).toBe(3);
+    expect(daysUntilBloom(NOW + 5 * DAY, NOW)).toBe(3);
+    expect(flowerView({ kind: '🌻', plantedAt: NOW + 1 }, NOW).label).toBe('Seedling, blooms in 3 days');
   });
 });
 

@@ -17,8 +17,10 @@ export function stageIndex(plantedAt, now) {
   return Math.min(STAGES.length - 1, Math.floor(days));
 }
 
+// A planting time in the future (the device clock moved back) counts as just planted.
 export function daysUntilBloom(plantedAt, now) {
-  return Math.max(0, Math.ceil(BLOOM_DAYS - (now - plantedAt) / DAY));
+  const days = Math.max(0, (now - plantedAt) / DAY);
+  return Math.max(0, Math.ceil(BLOOM_DAYS - days));
 }
 
 // What to draw for one flower right now.
