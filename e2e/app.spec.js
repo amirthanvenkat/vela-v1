@@ -319,3 +319,47 @@ test('six Learn articles, with related reads on Save and Invest', async ({ page 
   await expect(page).toHaveURL(/#\/learn\/dips$/);
   await expect(root(page)).toContainText('Checking less often helps.');
 });
+
+// Goal-linked invest suggestions
+const tip = (page) => page.getByRole('note', { name: 'Goal suggestion' });
+
+test('a long-term goal suggests and pre-fills a monthly amount', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?goal=1#/save/goal');
+  await page.fill('#goal-name', 'Flat');
+  await page.getByLabel('Goal amount in SGD').fill('6000');
+  await tap(page, '5 years');
+  await tap(page, 'Save goal');
+  await expect(root(page)).toContainText(/Flat · SGD 6,000.00 · by \w{3} \d{4}/);
+
+  // 6,000 - 320 already saved = 5,680 over 60 months = 94.67, rounded up to 95
+  await tap(page, 'Invest');
+  await tap(page, 'Plant a flower');
+  await expect(tip(page)).toContainText('about SGD 95 a month would get you there, before any growth');
+  await expect(tip(page)).toContainText('A guide, not advice.');
+  await expect(page.getByLabel('Investment amount in SGD')).toHaveValue('95');
+
+  // Still the user's choice: change it, and the tip offers the suggestion back
+  await tap(page, 'SGD 20');
+  await tap(page, 'Use SGD 95');
+  await expect(page.getByRole('button', { name: 'Invest SGD 95.00' })).toBeVisible();
+});
+
+test('a goal under 3 years away points to savings instead', async ({ page }) => {
+  await page.goto('./#/invest/plant?demo&goal=' + encodeURIComponent('Trip to Japan:1000:') + new Date().getFullYear() + '-12');
+  await expect(tip(page)).toContainText("That's less than 3 years away");
+  await expect(page.getByLabel('Investment amount in SGD')).toHaveValue('50');
+  await page.getByRole('button', { name: 'Why savings first →' }).click();
+  await expect(page).toHaveURL(/#\/learn\/rainyday$/);
+});
+
+test('a goal without a date offers to add one; no goal, no tip', async ({ page }) => {
+  await page.goto('./#/invest/plant?demo&goal=Laptop:1500');
+  await expect(tip(page)).toContainText('Add a date to your goal');
+  await page.getByRole('button', { name: 'Add a date →' }).click();
+  await expect(page).toHaveURL(/#\/save\/goal$/);
+
+  await page.goto('./?n=1#/invest/plant?demo');
+  await expect(root(page)).toContainText('How much do you want to invest?');
+  await expect(tip(page)).toHaveCount(0);
+});

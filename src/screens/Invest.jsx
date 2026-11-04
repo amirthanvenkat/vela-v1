@@ -7,6 +7,7 @@ import { useApp } from '../context';
 import { MIN_INVEST, RISKS } from '../data';
 import { INSTANT } from '../lib/boot';
 import { flowerView, gardenSummary, useNow } from '../lib/garden';
+import { formatMonth, goalSuggestion } from '../lib/goals';
 import { fmt } from '../lib/format';
 
 /* ---- Invest flow ---- */
@@ -52,10 +53,50 @@ export function InvestHome() {
   );
 }
 
+// A gentle, goal-linked idea for how much to invest. Always a guide: the amount stays the user's choice.
+function GoalTip({ tip, goal, amt, onUse, onEdit, onRead }) {
+  return (
+    <div className="mt-5 rounded-2xl p-4" style={{ background: 'var(--soft)', border: '1px solid var(--border)' }} role="note" aria-label="Goal suggestion">
+      <p className="text-[12px] font-medium uppercase tracking-wide" style={{ color: 'var(--subtle)' }}>🎯 {goal.name}</p>
+      {tip.kind === 'monthly' && (
+        <>
+          <p className="mt-1.5 text-[14px] leading-snug" style={{ color: 'var(--text)' }}>
+            To reach SGD {fmt(goal.target)} by {formatMonth(goal.by)}, about <strong>SGD {tip.monthly} a month</strong> would
+            get you there, before any growth.
+          </p>
+          {amt !== tip.monthly && (
+            <button onClick={() => onUse(tip.monthly)} className="mt-2.5 rounded-full px-3 py-1.5 text-[13px] font-medium text-coral"
+              style={{ border: '1px solid #FF6B6B' }}>Use SGD {tip.monthly}</button>
+          )}
+        </>
+      )}
+      {tip.kind === 'soon' && (
+        <>
+          <p className="mt-1.5 text-[14px] leading-snug" style={{ color: 'var(--text)' }}>
+            That's less than 3 years away. Money you'll need soon is usually safer in your Savings Pot, where it can't dip.
+          </p>
+          <button onClick={onRead} className="mt-2.5 text-[13px] font-medium text-coral">Why savings first →</button>
+        </>
+      )}
+      {tip.kind === 'noDate' && (
+        <>
+          <p className="mt-1.5 text-[14px] leading-snug" style={{ color: 'var(--text)' }}>
+            Add a date to your goal and we'll suggest a monthly amount.
+          </p>
+          <button onClick={onEdit} className="mt-2.5 text-[13px] font-medium text-coral">Add a date →</button>
+        </>
+      )}
+      <p className="mt-2.5 text-[11px]" style={{ color: 'var(--subtle)' }}>A guide, not advice. You choose the amount.</p>
+    </div>
+  );
+}
+
 export function InvestConfirm() {
-  const { back, risk, balance, plantFlower, navigate } = useApp();
+  const { back, risk, balance, savings, goal, plantFlower, navigate } = useApp();
   const r = RISKS[risk];
-  const [amt, setAmt] = useState('50');
+  const tip = goalSuggestion(goal, savings, Date.now(), MIN_INVEST);
+  // Pre-fill a long-term goal's monthly suggestion (still editable); otherwise the usual SGD 50.
+  const [amt, setAmt] = useState(() => (tip && tip.kind === 'monthly' && tip.monthly <= balance ? String(tip.monthly) : '50'));
   const n = Number(amt);
   const tooLittle = n > 0 && n < MIN_INVEST;
   const tooMuch = n > balance;
@@ -70,6 +111,11 @@ export function InvestConfirm() {
         {tooMuch ? <Hint warn>That's more than you have. You have SGD {fmt(balance)} available.</Hint>
           : tooLittle ? <Hint warn>The smallest flower is SGD {MIN_INVEST}.</Hint>
           : <Hint>SGD {fmt(balance)} available. You can take it out whenever you want.</Hint>}
+
+        {tip && tip.kind !== 'reached' && (
+          <GoalTip tip={tip} goal={goal} amt={n} onUse={(v) => setAmt(String(v))}
+            onEdit={() => navigate('setGoal', 1)} onRead={() => navigate('learnArticle', 1, { id: 'rainyday' })} />
+        )}
 
         <div className="mt-6 flex w-full items-center gap-3 rounded-2xl p-3.5"
           style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>

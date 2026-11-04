@@ -131,6 +131,14 @@ not the market's mood, so a bad week never wilts her garden and there's nothing 
 amount with a plain-language exit promise, and the reward moment is designed to be worth
 coming back for.
 
+Later, Maya sets a bigger goal: SGD 20,000 towards a flat, by June 2031. Next time she plants a
+flower, the amount screen has an idea for her: about SGD 358 a month would get her there, before
+any growth. The amount is filled in, but she can change it, and a small line says it's a guide,
+not advice. When she tries the same with her Japan trip, which is only a year away, the app
+suggests keeping that money in her Savings Pot instead, where it can't dip.
+
+![Invest amount screen suggesting about SGD 358 a month for a flat by June 2031](screenshots/13-goal-suggestion.png)
+
 ---
 
 ## Story 6: Learning at her own pace, making it hers

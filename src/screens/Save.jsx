@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { IconBubble, Button, Card, ScreenHeader, AmountInput, Hint, ReadLink } from '../components/ui';
 import { useApp } from '../context';
 import { fmt } from '../lib/format';
+import { formatMonth, isMonth, monthFromNow } from '../lib/goals';
 
 /* ---- Save flow ---- */
 export function SaveHome() {
@@ -44,7 +45,7 @@ export function SaveHome() {
           <div className="flex-1">
             <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{goal ? 'Edit your goal' : 'Set a Goal'}</p>
             <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>
-              {goal ? `${goal.name} · SGD ${fmt(goal.target)}` : 'A trip? A rainy day? Name it and grow it.'}
+              {goal ? `${goal.name} · SGD ${fmt(goal.target)}${isMonth(goal.by) ? ` · by ${formatMonth(goal.by)}` : ''}` : 'A trip? A rainy day? Name it and grow it.'}
             </p>
           </div>
           <span className="text-coral text-[20px]" aria-hidden="true">{goal ? '✎' : '＋'}</span>
@@ -86,8 +87,14 @@ export function SetGoal() {
   const { back, goal, setGoalTo } = useApp();
   const [goalName, setGoalName] = useState(goal ? goal.name : '');
   const [target, setTarget] = useState(goal ? String(goal.target) : '');
-  const valid = goalName.trim().length > 0 && Number(target) > 0;
-  const save = () => { if (!valid) return; setGoalTo({ name: goalName.trim(), target: Number(target) }); back(); };
+  const [by, setBy] = useState(goal && isMonth(goal.by) ? goal.by : '');
+  const thisMonth = monthFromNow(0, Date.now());
+  const valid = goalName.trim().length > 0 && Number(target) > 0 && (!by || by >= thisMonth);
+  const save = () => {
+    if (!valid) return;
+    setGoalTo({ name: goalName.trim(), target: Number(target), ...(by ? { by } : {}) });
+    back();
+  };
   return (
     <div className="flex h-full flex-col pb-safe" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title={goal ? 'Edit goal' : 'Set a goal'} onBack={back} />
@@ -100,6 +107,27 @@ export function SetGoal() {
           style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }} />
         <p className="mb-3 mt-6 text-[15px]" style={{ color: 'var(--text)' }}>How much do you need?</p>
         <AmountInput value={target} onChange={setTarget} presets={[500, 1000, 2000]} label="Goal amount in SGD" />
+
+        <p className="mb-3 mt-6 text-[15px]" style={{ color: 'var(--text)' }}>
+          By when? <span style={{ color: 'var(--subtle)' }}>(optional)</span>
+        </p>
+        <div className="grid grid-cols-4 gap-2">
+          {[['No date', ''], ['1 year', monthFromNow(1, Date.now())], ['3 years', monthFromNow(3, Date.now())], ['5 years', monthFromNow(5, Date.now())]].map(([label, value]) => {
+            const on = by === value;
+            return (
+              <button key={label} onClick={() => setBy(value)} aria-pressed={on}
+                className="rounded-xl py-2.5 text-[13px] font-medium transition active:scale-95"
+                style={{ background: on ? '#FF6B6B' : 'var(--card)', color: on ? '#FFF8F5' : 'var(--text)', border: '1px solid var(--border)' }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <input type="month" value={by} min={thisMonth} onChange={(e) => setBy(e.target.value)} aria-label="Goal month"
+          className="mt-3 w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+          style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }} />
+        {by && by < thisMonth && <Hint warn>Pick this month or later.</Hint>}
+        {by && by >= thisMonth && <Hint>We'll use this to suggest a monthly amount when you invest.</Hint>}
       </div>
       <div className="space-y-2 px-6 pt-3">
         <Button disabled={!valid} onClick={save}>{goal ? 'Update goal' : 'Save goal'}</Button>
