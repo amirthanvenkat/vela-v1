@@ -45,8 +45,8 @@ at least 48px tall.
 something growing rather than something to monitor.*
 
 After telling the app her name, Maya meets her garden: a green screen with a single seed.
-The app explains the one metaphor it will use everywhere: every time she invests, a new
-flower blooms.
+The app explains the one metaphor it will use everywhere: every time she invests, she plants
+a new flower, and over a few days it grows from a seedling into a bloom.
 
 ![Garden introduction screen with a seed](screenshots/03-garden-intro.png)
 
@@ -113,12 +113,19 @@ picked, with SGD 20 and SGD 100 one tap away (the smallest flower is SGD 10). Th
 exactly what is happening: the amount, her fox style, how much she has available, and one line
 that answers her biggest worry: she can take her money out whenever she wants.
 
-She taps **Invest SGD 50.00**. The screen goes dark, her garden rises from the bottom, and a flower
-blooms next to her seed with a burst of confetti. "Your first bloom."
+She taps **Invest SGD 50.00**. The screen goes dark, her garden rises from the bottom, and a
+seedling marked "Just planted" pops up next to her seed with a burst of confetti. "Your first
+flower is planted."
 
-| Confirming | First bloom |
+Over the next three days she checks in and watches it grow: a seedling, then a sprout, then a
+bud, then a full bloom. The Invest screen tells her when the next bloom is due.
+
+**Why the garden grows by days, not by market prices:** the flowers reward the habit of planting,
+not the market's mood, so a bad week never wilts her garden and there's nothing to refresh.
+
+| Confirming | First flower planted |
 |---|---|
-| ![Invest confirmation with risk style and reassurance](screenshots/07-invest-confirm.png) | ![Success screen showing the first flower blooming](screenshots/08-invest-success.png) |
+| ![Invest confirmation with risk style and reassurance](screenshots/07-invest-confirm.png) | ![Success screen showing the first seedling, marked Just planted](screenshots/08-invest-success.png) |
 
 **Why this matters:** the moment of highest anxiety (committing money) pairs the exact
 amount with a plain-language exit promise, and the reward moment is designed to be worth
@@ -135,6 +142,11 @@ Waiting for the bus, Maya opens Learn and reads "What is investing?". Four short
 paragraphs, no jargon, one idea per paragraph. Later she pokes around Settings, switches
 the theme to Dark for night reading, and sees her fox profile with the option to retake
 the question whenever her comfort changes.
+
+Learn has six short reads. Three of them show up right where Maya needs them: under her
+Savings Pot she finds "Why a rainy-day fund comes first", and under her garden, "Dips are
+normal". "Small amounts grow" shows her, with an example, why starting with SGD 50 at 23 beats
+waiting until she earns more.
 
 | A short read | Settings and themes |
 |---|---|

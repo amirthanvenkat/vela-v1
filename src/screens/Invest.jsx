@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Confetti } from '../components/Confetti';
 import { Garden } from '../components/Garden';
-import { IconBubble, Button, Card, ScreenHeader, AmountInput, Hint } from '../components/ui';
+import { IconBubble, Button, Card, ScreenHeader, AmountInput, Hint, ReadLink } from '../components/ui';
 import { useApp } from '../context';
 import { MIN_INVEST, RISKS } from '../data';
 import { INSTANT } from '../lib/boot';
+import { flowerView, gardenSummary, useNow } from '../lib/garden';
 import { fmt } from '../lib/format';
 
 /* ---- Invest flow ---- */
 export function InvestHome() {
   const { flowers, invested, navigate } = useApp();
+  const { nextBloomIn } = gardenSummary(flowers, useNow());
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
       <ScreenHeader title="Invest" />
@@ -24,6 +26,11 @@ export function InvestHome() {
           <p className="mt-0.5 text-[13px] text-white/85">
             {flowers.length === 0 ? 'Still just a seed, ready to bloom.' : `${flowers.length} ${flowers.length === 1 ? 'flower' : 'flowers'} so far. Keep going!`}
           </p>
+          {nextBloomIn && (
+            <p className="mt-0.5 text-[12px] text-white/75">
+              Next bloom in about {nextBloomIn} {nextBloomIn === 1 ? 'day' : 'days'}. New flowers grow a little each day.
+            </p>
+          )}
           <div className="mt-3 rounded-xl bg-white/15 p-4">
             <Garden flowers={flowers} big />
           </div>
@@ -37,8 +44,9 @@ export function InvestHome() {
           <span aria-hidden="true" style={{ color: 'var(--subtle)' }}>→</span>
         </Card>
       </div>
-      <div className="px-5 pt-5">
+      <div className="space-y-3 px-5 pt-5">
         <Button onClick={() => navigate('investConfirm', 1)}>Plant a flower</Button>
+        <ReadLink icon="🎢" title="Dips are normal: what to do when it goes down" onClick={() => navigate('learnArticle', 1, { id: 'dips' })} />
       </div>
     </div>
   );
@@ -82,7 +90,9 @@ export function InvestConfirm() {
 
 export function InvestSuccess({ amt }) {
   const { flowers, goTab } = useApp();
-  const newFlower = flowers[flowers.length - 1] || '🌸';
+  const now = useNow();
+  // The new planting starts as a seedling and blooms over the next few days.
+  const newFlower = flowers.length ? flowerView(flowers[flowers.length - 1], now) : { emoji: '🌱', scale: 0.6 };
   const [stage, setStage] = useState(INSTANT ? 2 : 0); // 0 navy, 1 garden up, 2 bloom+confetti
   useEffect(() => {
     if (INSTANT) return;
@@ -100,13 +110,20 @@ export function InvestSuccess({ amt }) {
           transition={{ type: 'spring', stiffness: 120, damping: 18 }}
           className="mb-8 w-full rounded-3xl p-6" style={{ background: '#4CAF82' }}>
           <div className="flex flex-wrap items-end gap-2" aria-hidden="true">
-            {['🌱', ...flowers.slice(0, -1)].map((f, i) => (
-              <span key={i} className="text-[34px]" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.2))' }}>{f}</span>
+            {[{ emoji: '🌱', scale: 1 }, ...flowers.slice(0, -1).map((f) => flowerView(f, now))].map((v, i) => (
+              <span key={i} className="inline-flex h-[42px] w-[40px] items-end justify-center"
+                style={{ fontSize: 34 * v.scale, lineHeight: 1, filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.2))' }}>{v.emoji}</span>
             ))}
-            <motion.span className="text-[50px]"
+            {/* The new planting gets a ring and a label so it stands out from the garden's first seed. */}
+            <motion.span className="relative inline-flex flex-col items-center"
               initial={INSTANT ? false : { scale: 0 }} animate={{ scale: stage >= 2 ? 1 : 0 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 12, duration: 0.6 }}
-              style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,.25))' }}>{newFlower}</motion.span>
+              transition={{ type: 'spring', stiffness: 260, damping: 12, duration: 0.6 }}>
+              <span className="grid h-[64px] w-[64px] place-items-center rounded-full bg-white/25 ring-2 ring-white/70"
+                style={{ fontSize: 50 * Math.max(newFlower.scale, 0.8), lineHeight: 1, filter: 'drop-shadow(0 4px 6px rgba(0,0,0,.25))' }}>
+                {newFlower.emoji}
+              </span>
+              <span className="mt-1 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-leaf">Just planted</span>
+            </motion.span>
           </div>
         </motion.div>
       </div>
@@ -114,9 +131,9 @@ export function InvestSuccess({ amt }) {
       <motion.div initial={INSTANT ? false : { opacity: 0, y: 16 }} animate={{ opacity: stage >= 2 ? 1 : 0, y: stage >= 2 ? 0 : 16 }}
         transition={{ delay: 0.15 }}
         className="px-7 pb-safe text-center">
-        <h1 className="font-serif text-[34px] font-semibold text-blush">{flowers.length === 1 ? 'Your first bloom.' : 'Another bloom!'}</h1>
+        <h1 className="font-serif text-[34px] font-semibold text-blush">{flowers.length === 1 ? 'Your first flower is planted.' : 'Another one planted!'}</h1>
         <p className="mx-auto mt-3 max-w-[290px] text-[15px] text-blush/75">
-          SGD {fmt(amt || 50)} invested. Your future just got a little bigger.
+          SGD {fmt(amt || 50)} invested. Watch it grow and bloom over the next few days.
         </p>
         <div className="mt-7">
           <Button onClick={() => goTab('home')}>See my garden</Button>
