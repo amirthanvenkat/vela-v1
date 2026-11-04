@@ -85,7 +85,7 @@ e2e/                  Playwright end-to-end tests
 1. Onboarding: Splash (auto-advances), Welcome, "What's your vibe" risk choice (🐢 / 🦊 / 🚀), Name, Garden intro
 2. Home: greeting, balance card, garden tile, quick actions, and a 5-tab bottom navigation bar
 3. Home extras: a "Recent" activity list and a notifications sheet behind the bell (with an unread dot)
-4. Save: savings pot, set or edit a goal (name + target, with a progress bar), add money with preset chips, then a confirmation screen
+4. Save: savings pot, set or edit a goal (name, target and an optional "by when" month, with a progress bar), add money with preset chips, then a confirmation screen
 5. Invest: garden, choose an amount (SGD 20 / 50 / 100 or your own, minimum SGD 10), then a "first flower planted" moment where the garden springs up, a seedling marked "Just planted" pops in, and coral and leaf confetti falls. Each flower then grows a stage a day (seedling, sprout, bud) and is in full bloom after three days; the Invest screen says when the next bloom is due
 6. Learn: six jargon-free reads (what investing is, risk, where your money goes, how small amounts grow, a rainy-day fund first, and why dips are normal). Save and Invest each link to the read that fits
 7. Settings: Light, Dark, and Moss themes, edit name, retake the risk choice, an About section, and Reset demo
@@ -125,11 +125,19 @@ between screens inside the app.
 - Tappable cards work with the keyboard (Tab, then Enter or Space), and animations follow the
   system "reduce motion" setting (no confetti or slides when it is on).
 - The copy avoids financial jargon. Where a term is needed, it is followed by a plain-language line.
+- Goal-linked suggestions: when a goal has a "by when" month, the invest-amount screen offers a
+  gentle tip. A goal 3 or more years away gets "about SGD X a month would get you there, before any
+  growth" (what's left divided by the months remaining, rounded up, never below the SGD 10
+  minimum), and that amount is pre-filled but always editable. A goal under 3 years away gets "money
+  you'll need soon is usually safer in your Savings Pot" with a link to the rainy-day read, and a
+  goal with no date gets an offer to add one. Every tip says it's a guide, not advice. The rules
+  live in `src/lib/goals.js`.
 - Demo links open any screen with seeded demo state, which is how the docs screenshots are
   captured: add `?demo` to a route, plus any of `name`, `flowers` (that many in bloom), `ages`
   (growing flowers planted that many days ago, e.g. `ages=0,1,2`), `amt`, `goal`, `theme`, `risk`
   and `frame`. For example `#/home?demo`, `#/invest/done?demo&flowers=1&amt=50`,
-  `#/save?demo&goal=Trip%20to%20Japan:1000`, or `#/settings?demo&theme=dark&frame=0`.
+  `#/save?demo&goal=Trip%20to%20Japan:1000` (add `:YYYY-MM` for a target month, e.g.
+  `goal=Flat:20000:2031-06`), or `#/settings?demo&theme=dark&frame=0`.
   Demo links always start from the demo state: they don't read or overwrite saved progress.
   Older links in the `#screen=investSuccess&flowers=1` form still work; they are rewritten to the
   route form on load.

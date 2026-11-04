@@ -52,6 +52,10 @@ describe('parseGoal', () => {
   it('parses name:target', () => {
     expect(parseGoal('Trip to Japan:1000')).toEqual({ name: 'Trip to Japan', target: 1000 });
   });
+  it('parses an optional target month', () => {
+    expect(parseGoal('Flat:20000:2031-06')).toEqual({ name: 'Flat', target: 20000, by: '2031-06' });
+    expect(parseGoal('Flat:20000:soon')).toEqual({ name: 'Flat', target: 20000 });
+  });
   it('rejects missing or invalid targets', () => {
     expect(parseGoal('Laptop')).toBeNull();
     expect(parseGoal('Laptop:0')).toBeNull();

@@ -1,5 +1,6 @@
 import { ARTICLES } from '../data';
 import { SCREEN_TAB, ONBOARDING, pathFor } from '../routes';
+import { isMonth } from './goals';
 
 // Reads key=value pairs from the query string and the hash. The hash is either a route with its own
 // query (#/invest/done?demo&flowers=1) or a legacy deep link (#screen=investSuccess&flowers=1).
@@ -35,10 +36,12 @@ export function legacyToRoute(boot) {
 }
 
 // "Trip to Japan:1000" -> { name: 'Trip to Japan', target: 1000 }
+// "Flat:20000:2031-06" -> { name: 'Flat', target: 20000, by: '2031-06' }
 export function parseGoal(raw) {
   if (!raw) return null;
-  const [name, target] = raw.split(':');
-  return name && Number(target) > 0 ? { name, target: Number(target) } : null;
+  const [name, target, by] = raw.split(':');
+  if (!name || !(Number(target) > 0)) return null;
+  return isMonth(by) ? { name, target: Number(target), by } : { name, target: Number(target) };
 }
 
 // Old #screen=… links (docs, shared demos) become routes before the router reads the URL.
