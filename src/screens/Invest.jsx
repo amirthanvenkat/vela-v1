@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Confetti } from '../components/Confetti';
 import { Garden } from '../components/Garden';
+import { MixBar } from '../components/MixBar';
 import { IconBubble, Button, Card, ScreenHeader, AmountInput, Hint, ReadLink } from '../components/ui';
 import { useApp } from '../context';
 import { MIN_INVEST, RISKS } from '../data';
@@ -12,7 +13,7 @@ import { fmt } from '../lib/format';
 
 /* ---- Invest flow ---- */
 export function InvestHome() {
-  const { flowers, invested, navigate } = useApp();
+  const { flowers, invested, risk, navigate } = useApp();
   const { nextBloomIn } = gardenSummary(flowers, useNow());
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-nav" style={{ background: 'var(--bg)' }}>
@@ -35,6 +36,16 @@ export function InvestHome() {
           <div className="mt-3 rounded-xl bg-white/15 p-4">
             <Garden flowers={flowers} big />
           </div>
+        </Card>
+        <Card>
+          <div className="flex items-center justify-between">
+            <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>
+              What your money is in <span aria-hidden="true">{RISKS[risk].emoji}</span>
+            </p>
+            <button onClick={() => navigate('retakeRisk', 1)} className="text-[13px] font-medium text-coral">Change</button>
+          </div>
+          <p className="mb-3 text-[12px]" style={{ color: 'var(--subtle)' }}>{RISKS[risk].label} · {RISKS[risk].profile}</p>
+          <MixBar risk={risk} />
         </Card>
         <Card onClick={() => navigate('investConfirm', 1)} label="Plant a new flower" className="flex items-center gap-3">
           <IconBubble size={44} tone="leaf">🌸</IconBubble>
@@ -121,9 +132,10 @@ export function InvestConfirm() {
         <div className="mt-6 flex w-full items-center gap-3 rounded-2xl p-3.5"
           style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
           <IconBubble size={46} tone="glass">{r.emoji}</IconBubble>
-          <div className="text-left">
+          <div className="min-w-0 flex-1 text-left">
             <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Your style</p>
             <p className="font-serif text-[17px] font-semibold" style={{ color: 'var(--text)' }}>{r.label} · {r.profile}</p>
+            <div className="mt-2"><MixBar risk={risk} compact /></div>
           </div>
         </div>
       </div>

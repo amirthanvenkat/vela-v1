@@ -2,10 +2,15 @@
 export const FLOWERS = ['🌸', '🌺', '🌻', '🌼', '💐'];
 export const MIN_INVEST = 10;
 
+// Each style is a fixed mix of shares (slices of companies: can grow more, moves up and down more)
+// and bonds (loans to governments and companies that pay interest: steadier, grow more slowly).
 export const RISKS = {
-  tortoise: { key: 'tortoise', emoji: '🐢', label: 'Tortoise', vibe: 'Play it safe', profile: 'Steady' },
-  fox:      { key: 'fox',      emoji: '🦊', label: 'Fox',      vibe: 'Balanced',     profile: 'Balanced' },
-  rocket:   { key: 'rocket',   emoji: '🚀', label: 'Rocket',   vibe: 'Go bold',      profile: 'Adventurous' },
+  tortoise: { key: 'tortoise', emoji: '🐢', label: 'Tortoise', vibe: 'Play it safe', profile: 'Steady',
+              mix: { shares: 30, bonds: 70 }, mixLine: 'Mostly bonds. Steadier, and grows more slowly.' },
+  fox:      { key: 'fox',      emoji: '🦊', label: 'Fox',      vibe: 'Balanced',     profile: 'Balanced',
+              mix: { shares: 60, bonds: 40 }, mixLine: 'A balance of growth and calm.' },
+  rocket:   { key: 'rocket',   emoji: '🚀', label: 'Rocket',   vibe: 'Go bold',      profile: 'Adventurous',
+              mix: { shares: 90, bonds: 10 }, mixLine: 'Mostly shares. Can grow faster, with bigger ups and downs.' },
 };
 
 export const ARTICLES = {

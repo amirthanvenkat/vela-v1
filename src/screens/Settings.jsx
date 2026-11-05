@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Toast } from '../components/overlays';
 import { IconBubble, Card, ScreenHeader } from '../components/ui';
+import { MixBar } from '../components/MixBar';
 import { useApp } from '../context';
 import { RISKS, THEMES } from '../data';
 
@@ -64,6 +65,7 @@ export function Settings() {
             <div className="flex-1">
               <p className="text-[12px]" style={{ color: 'var(--subtle)' }}>Your money style</p>
               <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{r.label} · {r.profile}</p>
+              <div className="mt-2"><MixBar risk={risk} compact /></div>
             </div>
             <button onClick={() => navigate('retakeRisk', 1)} className="rounded-full px-3 py-1.5 text-[13px] font-medium text-coral"
               style={{ border: '1px solid #FF6B6B' }}>Retake</button>

@@ -137,6 +137,11 @@ function App() {
     setBalance((b) => roundMoney(b - amt)); setInvested((i) => roundMoney(i + amt));
     log('invest', 'Planted a flower', amt);
   }, []);
+  // Switching style moves future and existing money to the new mix (instantly, in this prototype).
+  const changeStyle = useCallback((key) => {
+    setRisk(key);
+    log('style', `Style changed to ${RISKS[key].label}`);
+  }, []);
   // Taking money out: it goes back to the balance straight away.
   const withdrawSavings = useCallback((amt) => {
     setSavings((s) => roundMoney(s - amt)); setBalance((b) => roundMoney(b + amt));
@@ -160,7 +165,7 @@ function App() {
   }, []);
 
   const ctx = {
-    name, setName, balance, savings, addToSavings, withdrawSavings, risk, setRisk, flowers, plantFlower, invested, withdrawInvested,
+    name, setName, balance, savings, addToSavings, withdrawSavings, risk, setRisk, changeStyle, flowers, plantFlower, invested, withdrawInvested,
     goal, setGoalTo, activity, seenAt, markSeen, overlayEl, theme, setTheme, onboarded, current: { screen: current, tab },
     navigate, back, goTab, resetTo, finishOnboarding, resetDemo,
   };
