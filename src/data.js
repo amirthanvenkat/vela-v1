@@ -41,7 +41,7 @@ export const ARTICLES = {
     title: 'Where does my money go?',
     blurb: 'Plain language, no jargon.',
     body: [
-      "When you invest through Vela, your money is spread across many well-known companies and assets, so it never rides on a single bet.",
+      "When you invest through VELA, your money is spread across many well-known companies and assets, so it never rides on a single bet.",
       "Spreading it out like this is called diversifying. It just means you don't put all your eggs in one basket, which softens the bumps.",
       "Your money is never locked away. You can take it out whenever you like, and you'll always see exactly how much you have.",
       "Every flower in your garden stands for a real piece of your money as it grows.",

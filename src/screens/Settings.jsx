@@ -75,7 +75,7 @@ export function Settings() {
           <Card>
             <p className="font-serif text-[16px] font-semibold" style={{ color: 'var(--text)' }}>About VELA</p>
             <p className="mt-1.5 text-[14px] leading-relaxed" style={{ color: 'var(--subtle)' }}>
-              Vela is a simpler way to save and invest your first salary, without the jargon or pressure.
+              VELA is a simpler way to save and invest your first salary, without the jargon or pressure.
             </p>
             <p className="mt-3 font-serif text-[15px] italic" style={{ color: '#FF6B6B' }}>"Your money, moving."</p>
             <p className="mt-2 text-[12px]" style={{ color: 'var(--subtle)' }}>Prototype · v1.1</p>

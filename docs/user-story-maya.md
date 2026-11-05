@@ -1,4 +1,4 @@
-# User story: Maya's first month with Vela
+# User story: Maya's first month with VELA
 
 This document walks through the app from the point of view of one sample persona. Every
 screenshot is a real capture of the prototype at phone size.
