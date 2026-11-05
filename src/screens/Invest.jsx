@@ -47,6 +47,7 @@ export function InvestHome() {
       </div>
       <div className="space-y-3 px-5 pt-5">
         <Button onClick={() => navigate('investConfirm', 1)}>Plant a flower</Button>
+        {invested > 0 && <Button variant="outline" onClick={() => navigate('withdrawInvest', 1)}>Take money out</Button>}
         <ReadLink icon="🎢" title="Dips are normal: what to do when it goes down" onClick={() => navigate('learnArticle', 1, { id: 'dips' })} />
       </div>
     </div>

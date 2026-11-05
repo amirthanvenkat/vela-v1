@@ -139,6 +139,18 @@ suggests keeping that money in her Savings Pot instead, where it can't dip.
 
 ![Invest amount screen suggesting about SGD 358 a month for a flat by June 2031](screenshots/13-goal-suggestion.png)
 
+One month, Maya's laptop dies. She opens Invest and taps **Take money out**. She types SGD 60,
+and before she confirms, the garden shows which two flowers will go, newest first. A line tells
+her there are no fees and no penalties. In real life the money would take a few working days;
+here it lands straight away. "SGD 60.00 is back in your balance. Your garden keeps growing with
+what's left."
+
+![Take money out of the garden, with two flowers faded to show they will go](screenshots/14-withdraw.png)
+
+**Why this matters:** every screen promises she can take her money out whenever she wants.
+Keeping that promise in two taps, and showing exactly what changes before she confirms, is what
+makes the promise believable.
+
 ---
 
 ## Story 6: Learning at her own pace, making it hers

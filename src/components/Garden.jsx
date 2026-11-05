@@ -5,7 +5,8 @@ import { flowerView, gardenSummary, useNow } from '../lib/garden';
 
 /* ---------- Garden ---------- */
 // The permanent seed is the garden's starting point; each planting then grows from seedling to bloom.
-export function Garden({ flowers, big = false }) {
+// `leaving` fades that many of the newest flowers, to preview a withdrawal.
+export function Garden({ flowers, big = false, leaving = 0 }) {
   const now = useNow();
   const size = big ? 40 : 30;
   const { blooming, growing } = gardenSummary(flowers, now);
@@ -15,11 +16,13 @@ export function Garden({ flowers, big = false }) {
     <div className="flex min-h-[40px] flex-wrap items-end gap-1.5" role="img" aria-label={label}>
       {[{ kind: '🌱', start: true }, ...flowers].map((f, i) => {
         const v = f.start ? { emoji: '🌱', scale: 1, label: 'First seed' } : flowerView(f, now);
+        const goes = !f.start && i > flowers.length - leaving;
         return (
-          <motion.span key={i} title={v.label} aria-hidden="true"
+          <motion.span key={i} title={goes ? `Leaving: ${v.label}` : v.label} aria-hidden="true"
             className="inline-flex items-end justify-center"
             style={{ width: size * 1.15, height: size * 1.25, fontSize: size * v.scale, lineHeight: 1,
-                     filter: 'drop-shadow(0 3px 4px rgba(0,0,0,.18))' }}
+                     opacity: goes ? 0.3 : 1, filter: goes ? 'grayscale(1)' : 'drop-shadow(0 3px 4px rgba(0,0,0,.18))',
+                     transition: 'opacity .2s, filter .2s' }}
             initial={{ scale: 0, y: 8 }} animate={{ scale: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 320, damping: 16, delay: i * 0.05 }}>
             {v.emoji}
