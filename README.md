@@ -20,7 +20,9 @@ On a laptop or desktop it opens inside an iPhone-style frame:
 | ![Home dashboard](docs/screenshots/04-home.png) | ![First flower planted success screen](docs/screenshots/08-invest-success.png) | ![Garden introduction](docs/screenshots/03-garden-intro.png) |
 
 Want to see how it feels to use? Read [Maya's user story](docs/user-story-maya.md), a
-screen-by-screen walkthrough from the point of view of a first-salary user.
+screen-by-screen walkthrough from the point of view of a first-salary user. For how the roadmap
+was ordered, from the first prototype to each merged pull request, see
+[How the roadmap was prioritised](docs/prioritisation.md) (RICE, MoSCoW and Kano).
 
 ## Running it locally
 
