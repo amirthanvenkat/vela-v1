@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { IconBubble, Button, H1 } from '../components/ui';
 import { useApp } from '../context';
+import { MixBar } from '../components/MixBar';
 import { RISKS } from '../data';
+import { styleChange } from '../lib/risk';
 
 /* ---- Onboarding ---- */
 export function Splash() {
@@ -41,16 +43,24 @@ export function Welcome() {
 }
 
 export function RiskQuestion({ retake = false }) {
-  const { navigate, back, risk, setRisk } = useApp();
+  const { navigate, back, risk, setRisk, changeStyle } = useApp();
   const [sel, setSel] = useState(retake ? risk : null);
+  const change = retake ? styleChange(risk, sel) : null;
+  // On short phones the "what changes" panel starts below the fold: bring it into view when it appears.
+  const panelRef = useRef(null);
+  useEffect(() => {
+    if (change && panelRef.current) panelRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [sel]);
   return (
     <div className="flex h-full flex-col px-6 pb-safe pt-14" style={{ background: 'var(--bg)' }}>
+      {/* Scrolls on short phones so the button below always stays on screen. */}
+      <div className="-mx-3 flex min-h-0 flex-1 flex-col overflow-y-auto px-3 no-scrollbar">
       {retake && (
         <button onClick={back} className="mb-3 self-start text-[14px]" style={{ color: 'var(--subtle)' }}>← Back</button>
       )}
       <H1 className="text-[28px]">What's your vibe with<br/>money right now?</H1>
       <p className="mt-2 text-[14px]" style={{ color: 'var(--subtle)' }}>Pick the one that feels like you. No wrong answers.</p>
-      <div className="mt-6 flex flex-1 flex-col gap-3" role="radiogroup" aria-label="Money style">
+      <div className="mb-3 mt-6 flex flex-1 flex-col gap-3" role="radiogroup" aria-label="Money style">
         {Object.values(RISKS).map((r) => {
           const on = sel === r.key;
           return (
@@ -69,8 +79,24 @@ export function RiskQuestion({ retake = false }) {
           );
         })}
       </div>
-      <Button disabled={!sel} onClick={() => { setRisk(sel); retake ? back() : navigate('name', 1); }}>
-        This is me
+      {change && (
+        <div ref={panelRef} className="mb-3 rounded-2xl p-4" role="note" aria-label="What changes"
+          style={{ background: 'var(--soft)', border: '1px solid var(--border)' }}>
+          <p className="text-[14px] font-medium" style={{ color: 'var(--text)' }}>{change.text}</p>
+          <div className="mt-3"><MixBar risk={sel} compact /></div>
+          <p className="mt-3 text-[12px]" style={{ color: 'var(--subtle)' }}>
+            New flowers use the new mix, and the money already in your garden moves to it too. No fees.
+            {change.bolder ? ' Expect bigger ups and downs.' : ' Expect a steadier ride that grows more slowly.'}
+          </p>
+        </div>
+      )}
+      </div>
+      <Button disabled={!sel} onClick={() => {
+        if (!retake) { setRisk(sel); navigate('name', 1); return; }
+        if (change) changeStyle(sel);
+        back();
+      }}>
+        {change ? `Switch to ${change.to.label}` : 'This is me'}
       </Button>
     </div>
   );

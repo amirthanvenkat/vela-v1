@@ -429,3 +429,48 @@ test('no Take money out button when there is nothing to take', async ({ page }) 
   await expect(root(page)).toContainText('Your Garden');
   await expect(page.getByRole('button', { name: 'Take money out' })).toHaveCount(0);
 });
+
+// Money style: what your money is in
+test('your style sets your mix, and switching shows what changes', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?mix=1#/invest');
+  await expect(page.getByRole('img', { name: '60% shares, 40% bonds' })).toBeVisible();
+  await expect(root(page)).toContainText('A balance of growth and calm.');
+
+  await page.getByRole('button', { name: 'Change', exact: true }).click();
+  await page.getByRole('radio', { name: /Rocket/ }).click();
+  const note = page.getByRole('note', { name: 'What changes' });
+  await expect(note).toContainText('Your mix moves from 60% shares and 40% bonds to 90% shares and 10% bonds.');
+  await expect(note).toContainText('Expect bigger ups and downs.');
+  await tap(page, 'Switch to Rocket');
+
+  await expect(page).toHaveURL(/#\/invest$/);
+  await expect(page.getByRole('img', { name: '90% shares, 10% bonds' })).toBeVisible();
+  await tap(page, 'Plant a flower');
+  await expect(root(page)).toContainText('Rocket · Adventurous');
+  await expect(page.getByRole('img', { name: '90% shares, 10% bonds' })).toBeVisible();
+
+  await page.goto('./?mix=2#/home');
+  await expect(root(page)).toContainText('Style changed to Rocket');
+  await page.goto('./?mix=3#/settings');
+  await expect(root(page)).toContainText('Rocket · Adventurous');
+});
+
+test('keeping the same style changes nothing', async ({ page }) => {
+  await onboard(page);
+  await page.goto('./?mix=4#/settings/style');
+  await page.getByRole('radio', { name: /Rocket/ }).click();
+  await expect(page.getByRole('note', { name: 'What changes' })).toBeVisible();
+  await page.getByRole('radio', { name: /Fox/ }).click();
+  await expect(page.getByRole('note', { name: 'What changes' })).toHaveCount(0);
+  await tap(page, 'This is me');
+  await page.goto('./?mix=5#/home');
+  await expect(root(page)).not.toContainText('Style changed');
+});
+
+test('onboarding stays jargon-free: no mix on the first style question', async ({ page }) => {
+  await page.goto('./#/risk?demo');
+  await page.getByRole('radio', { name: /Rocket/ }).click();
+  await expect(page.getByRole('note', { name: 'What changes' })).toHaveCount(0);
+  await expect(root(page)).not.toContainText('bonds');
+});

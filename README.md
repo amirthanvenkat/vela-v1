@@ -135,6 +135,14 @@ between screens inside the app.
 - Tappable cards work with the keyboard (Tab, then Enter or Space), and animations follow the
   system "reduce motion" setting (no confetti or slides when it is on).
 - The copy avoids financial jargon. Where a term is needed, it is followed by a plain-language line.
+- Money style sets what your money is in. Each style is a fixed mix of shares (slices of
+  companies: can grow more, and move more) and bonds (loans that pay interest: steadier, and they
+  grow more slowly): 🐢 Tortoise 30/70, 🦊 Fox 60/40, 🚀 Rocket 90/10. The mix shows as a bar on
+  Invest, the invest-amount screen and Settings. Changing style (Invest > Change, or Settings >
+  Retake) shows "Your mix moves from 60% shares and 40% bonds to 90% shares and 10% bonds" before you
+  confirm, explains that new flowers and existing money both move to the new mix, and logs the
+  change in Recent. The first onboarding question stays jargon-free: no mix there. The mixes live
+  in `src/data.js` and the comparison in `src/lib/risk.js`.
 - Goal-linked suggestions: when a goal has a "by when" month, the invest-amount screen offers a
   gentle tip. A goal 3 or more years away gets "about SGD X a month would get you there, before any
   growth" (what's left divided by the months remaining, rounded up, never below the SGD 10

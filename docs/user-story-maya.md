@@ -163,6 +163,14 @@ paragraphs, no jargon, one idea per paragraph. Later she pokes around Settings, 
 the theme to Dark for night reading, and sees her fox profile with the option to retake
 the question whenever her comfort changes.
 
+Her fox style isn't just a label. Invest shows what her money is in: 60% shares, 40% bonds, with
+one plain line on what each means. When she wonders about going bolder and picks the rocket,
+VELA shows what would change before anything does: her mix would move to 90% shares and 10% bonds,
+her existing money would move too, and she should expect bigger ups and downs. She decides to
+stay a fox for now.
+
+![Changing style from Fox to Rocket, showing the mix moving from 60/40 to 90/10](screenshots/15-style-change.png)
+
 Learn has six short reads. Three of them show up right where Maya needs them: under her
 Savings Pot she finds "Why a rainy-day fund comes first", and under her garden, "Dips are
 normal". "Small amounts grow" shows her, with an example, why starting with SGD 50 at 23 beats
