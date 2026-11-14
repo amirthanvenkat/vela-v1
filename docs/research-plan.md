@@ -55,8 +55,14 @@ Take "never" or "once or twice". Try for a mix of iPhone and Android.
 - [ ] If the session is remote, ask them to join from a laptop and hold the phone up, or to share
       their phone screen.
 
-The garden link opens a seeded demo with one flower in bloom and three still growing. Demo links do
-not read or overwrite saved progress, so it is safe to open mid-session.
+The garden link opens a seeded demo of the Invest screen: SGD 200.00 in a garden of four flowers
+(one in bloom, plus a seedling, a sprout and a bud), next to the starting seed. It reads "4 flowers
+so far" and "Next bloom in about 1 day". Demo links do not read or overwrite saved progress, so it
+is safe to open mid-session.
+
+The link only works when it loads as a fresh page. Tapping it in a message opens a new tab, which
+is fine. Pasting it over the address in the tab where VELA is already open does not load the demo.
+If that happens, reload the page.
 
 ---
 
@@ -127,7 +133,8 @@ link.
 **Pass:** they say the flowers grow with time or with planting, not with profit. Note separately
 whether they ask how much their money is worth.
 
-When done, ask them to go back to the first link.
+When done, ask them to close this tab and go back to the first one. Their own progress is still
+there.
 
 ### Task 3: save for something (4 min)
 
