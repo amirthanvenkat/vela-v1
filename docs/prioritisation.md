@@ -1,6 +1,6 @@
 # VELA: how the roadmap was prioritised
 
-*From the first single-file prototype to the seventh merged pull request (June to November 2026).
+*From the first single-file prototype to the ninth merged pull request (June to November 2026).
 A product decision log, explained through RICE, MoSCoW and Kano.*
 
 ---
@@ -8,8 +8,8 @@ A product decision log, explained through RICE, MoSCoW and Kano.*
 ## Summary
 
 VELA is a mobile banking and investing prototype for people earning their first salary. It went
-from one HTML file to an installable, tested, offline-capable app in ten rounds of work: a
-three-step first build, then seven pull requests.
+from one HTML file to an installable, tested, offline-capable app in twelve rounds of work: a
+three-step first build, then nine pull requests.
 
 The order followed one rule: **make the prototype credible before making it clever.** First fix
 what would break a reviewer's trust (money that goes negative, buttons that do nothing,
@@ -32,6 +32,8 @@ happened, is covered in [What I'd do differently](#what-id-do-differently).
 | 5 | Garden growth over time, three new Learn articles | 4 Nov | Delight | Delighter + performance | Could |
 | 6 | Goal-linked invest suggestions | 4 Nov | Guidance | Performance | Could |
 | 7 | Withdrawals from the Savings Pot and garden | 5 Nov | Trust | **Basic** | Must (once found) |
+| 8 | CI fix so deploys run again, and this decision log | 5 Nov | Upkeep | (enabler) | Must (deploys were blocked) |
+| 9 | Money style sets what your money is in | 5 Nov | Trust | Basic (a promise) | Should |
 
 ---
 
@@ -236,6 +238,46 @@ do it fails the most basic trust test, however good its delighters are.
 
 ---
 
+## Round 8: keep the pipeline working (PR #8, 5 Nov)
+
+**Trigger:** the withdrawals merge passed review but never reached the live site. GitHub's
+default test machine had moved to a newer Ubuntu release that the installed Playwright version
+could not install a browser on, so the end-to-end step failed and the deploy was skipped.
+
+**Decision: pin the test job to the Ubuntu release it last passed on.** Upgrading Playwright was
+the other option. Pinning was the smallest change that got a finished feature in front of
+reviewers the same day, and the upgrade moved to the upkeep list.
+
+This round was not on any list and has no RICE score. A blocked deploy outranks everything
+else, because nothing merged after it can reach a user. This decision log shipped in the same
+pull request.
+
+---
+
+## Round 9: the other broken promise (PR #9, 5 Nov)
+
+**Trigger:** the same promises audit that found withdrawals. Onboarding asks you to choose a
+tortoise, a fox or a rocket, and the choice changed nothing.
+
+| Item | R | I | C | E | RICE | Kano |
+|---|---|---|---|---|---|---|
+| Making the risk choice matter | 50 | 1 | 80% | 1.5 | **27** | Basic (a promise) |
+
+**The key decision was how much to explain.** Each style became a fixed mix of shares and bonds
+(Tortoise 30/70, Fox 60/40, Rocket 90/10), shown as a bar on Invest, the invest-amount screen and
+Settings.
+
+**Design choices:**
+- **Two terms, each with a plain-language line.** Shares are slices of companies. Bonds are loans
+  that pay interest. No other terms were added.
+- **Show the change before it happens.** Switching style says "Your mix moves from 60% shares and
+  40% bonds to 90% shares and 10% bonds", that existing money moves too, and whether to expect
+  bigger ups and downs or a steadier ride.
+- **Onboarding stays jargon-free.** The first question still shows only the three characters. The
+  mix appears later, on Invest and in Settings.
+
+---
+
 ## The three frameworks side by side
 
 | Framework | What it got right | Where it fell short here |
@@ -267,11 +309,10 @@ sets the scope of each release.
 
 | Item | RICE | Status |
 |---|---|---|
-| Make the risk choice matter (each style gets a shares/bonds mix, shown on Invest; switching shows what changes) | 27 | **In progress** |
 | Real-phone install and offline check | 200 | Needs the product owner, on a device |
 | Usability sessions with 3–5 first-salary users | n/a | Raises Confidence on everything above |
 | Singapore CPF article | 48 | Not started |
-| Upkeep: CI action versions, self-hosted fonts, accessibility scan, fix the double focus outline | 25 | Not started |
+| Upkeep: CI action versions, a Playwright upgrade so the test machine can be unpinned, self-hosted fonts, accessibility scan, fix the double focus outline | 25 | Not started |
 | Goals counting invested money | 6 | Needs a decision on how invested value counts |
 | TypeScript | n/a | Deferred until VELA grows |
 

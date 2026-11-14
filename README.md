@@ -45,7 +45,7 @@ fills the screen. Add `?frame=0` (or `&frame=0` in a demo link) to turn the fram
 | `npm run build` | Build the static site into `dist/` |
 | `npm run preview` | Serve the built `dist/` locally |
 | `npm run lint` | ESLint |
-| `npm test` | Unit tests (Vitest) for the formatting and deep-link helpers |
+| `npm test` | Unit tests (Vitest) for the business rules and helpers in `src/lib/`, and the routes |
 | `npm run e2e` | End-to-end tests (Playwright) against the production build |
 | `npm run icons` | Re-render the PNG app icons from `public/icon.svg` |
 
@@ -76,9 +76,10 @@ src/
   data.js             risk styles, Learn articles, themes
   routes.js           URL for each screen, and which tab it belongs to
   context.js          app context (useApp)
-  lib/                formatting and deep-link/boot helpers (with unit tests)
-  components/         UI primitives, garden, bottom nav, overlays, phone frame
-  screens/            Onboarding, Home, Save, Invest, Learn, Settings
+  lib/                business rules (garden growth, withdrawals, goals, risk mixes) and
+                      formatting and deep-link/boot helpers, each with unit tests
+  components/         UI primitives, garden, mix bar, bottom nav, overlays, phone frame
+  screens/            Onboarding, Home, Save, Invest, Withdraw, Learn, Settings
 e2e/                  Playwright end-to-end tests
 ```
 
