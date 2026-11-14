@@ -319,4 +319,4 @@ sets the scope of each release.
 ---
 
 *See also: [Maya's user story](user-story-maya.md) for how these features feel from a user's
-point of view, and the [README](../README.md) for how the app is built and run.*
+point of view, and the [development notes](development.md) for how the app is built and run.*

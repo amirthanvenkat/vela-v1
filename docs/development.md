@@ -1,0 +1,143 @@
+# VELA: development notes
+
+*How to run, test and deploy VELA, how the code is laid out, what each flow does and why it was
+built that way. For what VELA is and the decisions behind it, start with the
+[README](../README.md).*
+
+## Running it locally
+
+You need Node.js 20 or newer.
+
+```bash
+npm install
+npm run dev        # http://localhost:5777/ with hot reload
+```
+
+On a desktop browser (at least 600px wide and 640px tall) the app renders inside an iPhone-style
+frame with a Dynamic Island, status bar and home indicator. The frame scales down to fit shorter
+windows, and the screen inside always stays at 390x844, so layouts never reflow. On a phone it
+fills the screen. Add `?frame=0` (or `&frame=0` in a demo link) to turn the frame off, or
+`frame=1` to force it on.
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server |
+| `npm run build` | Build the static site into `dist/` |
+| `npm run preview` | Serve the built `dist/` locally |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (Vitest) for the business rules and helpers in `src/lib/`, and the routes |
+| `npm run e2e` | End-to-end tests (Playwright) against the production build |
+| `npm run icons` | Re-render the PNG app icons from `public/icon.svg` |
+
+The first time you run the end-to-end tests, install the browser with
+`npx playwright install chromium`.
+
+## Deploying
+
+Every push to `main` runs [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml): lint,
+unit tests, end-to-end tests, build, then deploy `dist/` to GitHub Pages. Pull requests run the
+same checks without deploying.
+
+One-time setup: in the repository's **Settings > Pages**, set **Source** to **GitHub Actions**.
+
+The build uses a relative base path, so `dist/` also works from any static host or sub-folder.
+
+## What's inside
+
+A [Vite](https://vite.dev/) + React 18 app:
+
+- React 18, Framer Motion 11 and Tailwind CSS 3, installed from npm and bundled by Vite
+- Google Fonts: Fraunces for headlines, DM Sans for the interface, DM Mono for numbers
+
+```
+src/
+  main.jsx            entry point
+  App.jsx             app state, routes and screen transitions
+  data.js             risk styles, Learn articles, themes
+  routes.js           URL for each screen, and which tab it belongs to
+  context.js          app context (useApp)
+  lib/                business rules (garden growth, withdrawals, goals, risk mixes) and
+                      formatting and deep-link/boot helpers, each with unit tests
+  components/         UI primitives, garden, mix bar, bottom nav, overlays, phone frame
+  screens/            Onboarding, Home, Save, Invest, Withdraw, Learn, Settings
+e2e/                  Playwright end-to-end tests
+```
+
+### Flows
+
+1. Onboarding: Splash (auto-advances), Welcome, "What's your vibe" risk choice (🐢 / 🦊 / 🚀), Name, Garden intro
+2. Home: greeting, balance card, garden tile, quick actions, and a 5-tab bottom navigation bar
+3. Home extras: a "Recent" activity list and a notifications sheet behind the bell (with an unread dot)
+4. Save: savings pot, set or edit a goal (name, target and an optional "by when" month, with a progress bar), add money with preset chips, then a confirmation screen
+5. Invest: garden, choose an amount (SGD 20 / 50 / 100 or your own, minimum SGD 10), then a "first flower planted" moment where the garden springs up, a seedling marked "Just planted" pops in, and coral and leaf confetti falls. Each flower then grows a stage a day (seedling, sprout, bud) and is in full bloom after three days; the Invest screen says when the next bloom is due
+6. Learn: six jargon-free reads (what investing is, risk, where your money goes, how small amounts grow, a rainy-day fund first, and why dips are normal). Save and Invest each link to the read that fits
+7. Settings: Light, Dark, and Moss themes, edit name, retake the risk choice, an About section, and Reset demo
+
+Saving and investing can't take more than your balance; the screen explains why the button is
+disabled instead of letting the balance go negative.
+
+**Taking money out.** Save and Invest each have a **Take money out** button (shown when there's
+money to take). You choose an amount, or tap **Take it all**, and it goes back to your balance
+straight away, with no fees and no penalties. Taking money out of the garden removes flowers to
+match, newest first, one per SGD 50 or part of it, and the screen previews which flowers will go
+before you confirm. While some money stays invested, at least one flower stays. Investment
+withdrawals note that in real life they usually take 1–3 working days. The rules live in
+`src/lib/withdraw.js`.
+
+### Demo state
+
+Maya, SGD 1,240.00 balance, Fox (Balanced) risk choice, a one-seed garden, and SGD 320 in the Savings Pot.
+
+Your progress is saved in the browser (`localStorage`), so a refresh keeps your name, balance,
+garden, goal and theme, and returns you to the tab you were on. **You > Reset demo** clears it
+and starts again from the splash screen. The browser back button (and Android back gesture) moves
+between screens inside the app.
+
+## Design notes
+
+- Routing uses [React Router](https://reactrouter.com/) 7 with hash URLs, so every screen has an
+  address that works on GitHub Pages and survives a refresh: `#/home`, `#/save/add`,
+  `#/save/goal`, `#/invest/plant`, `#/learn/risk`, `#/settings/style` and so on (the full table is
+  `SCREEN_PATHS` in `src/routes.js`). Framer Motion's `AnimatePresence` slides screens left or
+  right; Back and Forward use the router's history position to pick the direction. Returning users
+  skip onboarding, and a screen opened directly still has a working Back button (it goes up to
+  its tab).
+- Installable and offline: [`vite-plugin-pwa`](https://vite-pwa-org.netlify.app/) generates the web
+  app manifest and a service worker that precaches the whole build, so after the first visit
+  VELA opens with no connection (Google Fonts are cached as they load). A new version downloads
+  in the background and is used from the next launch; nothing reloads while you're mid-flow.
+  The icon is `public/icon.svg` (full-bleed, so it also works as a maskable Android icon).
+- The garden grows by time, not by market prices: a flower blooms three days after it's planted,
+  whatever the market does. It rewards the habit, never shows a fake return, and a bad week
+  can't wilt it. The growth rules live in `src/lib/garden.js`.
+- Themes are driven by CSS variables, so every screen restyles instantly.
+- The "3D glass" icons are approximated with glossy gradient bubbles wrapping an emoji.
+- The bottom navigation has 5 line icons (Home, Save, Invest, Learn, You), with "You" opening Settings.
+- Tappable cards work with the keyboard (Tab, then Enter or Space), and animations follow the
+  system "reduce motion" setting (no confetti or slides when it is on).
+- The copy avoids financial jargon. Where a term is needed, it is followed by a plain-language line.
+- Money style sets what your money is in. Each style is a fixed mix of shares (slices of
+  companies: can grow more, and move more) and bonds (loans that pay interest: steadier, and they
+  grow more slowly): 🐢 Tortoise 30/70, 🦊 Fox 60/40, 🚀 Rocket 90/10. The mix shows as a bar on
+  Invest, the invest-amount screen and Settings. Changing style (Invest > Change, or Settings >
+  Retake) shows "Your mix moves from 60% shares and 40% bonds to 90% shares and 10% bonds" before you
+  confirm, explains that new flowers and existing money both move to the new mix, and logs the
+  change in Recent. The first onboarding question stays jargon-free: no mix there. The mixes live
+  in `src/data.js` and the comparison in `src/lib/risk.js`.
+- Goal-linked suggestions: when a goal has a "by when" month, the invest-amount screen offers a
+  gentle tip. A goal 3 or more years away gets "about SGD X a month would get you there, before any
+  growth" (what's left divided by the months remaining, rounded up, never below the SGD 10
+  minimum), and that amount is pre-filled but always editable. A goal under 3 years away gets "money
+  you'll need soon is usually safer in your Savings Pot" with a link to the rainy-day read, and a
+  goal with no date gets an offer to add one. Every tip says it's a guide, not advice. The rules
+  live in `src/lib/goals.js`.
+- Demo links open any screen with seeded demo state, which is how the docs screenshots are
+  captured: add `?demo` to a route, plus any of `name`, `flowers` (that many in bloom), `ages`
+  (growing flowers planted that many days ago, e.g. `ages=0,1,2`), `amt`, `goal`, `theme`, `risk`
+  and `frame`. For example `#/home?demo`, `#/invest/done?demo&flowers=1&amt=50`,
+  `#/save?demo&goal=Trip%20to%20Japan:1000` (add `:YYYY-MM` for a target month, e.g.
+  `goal=Flat:20000:2031-06`), or `#/settings?demo&theme=dark&frame=0`.
+  Demo links always start from the demo state: they don't read or overwrite saved progress.
+  They are read once, when the page loads, so open them as a fresh page.
+  Older links in the `#screen=investSuccess&flowers=1` form still work; they are rewritten to the
+  route form on load.

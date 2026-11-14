@@ -1,6 +1,6 @@
 # VELA project notes
 
-A mobile-web banking and investing prototype for first-salary users. Vite + React 18 app; the README has the full layout, flows and design notes.
+A mobile-web banking and investing prototype for first-salary users. Vite + React 18 app; the README is the product case study, and `docs/development.md` has the full layout, flows and design notes.
 
 ## Working on it
 
