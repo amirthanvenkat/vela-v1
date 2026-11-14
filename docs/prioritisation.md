@@ -310,7 +310,7 @@ sets the scope of each release.
 | Item | RICE | Status |
 |---|---|---|
 | Real-phone install and offline check | 200 | Needs the product owner, on a device |
-| Usability sessions with 3–5 first-salary users | n/a | Raises Confidence on everything above |
+| Usability sessions with 3–5 first-salary users | n/a | [Session kit](research-plan.md) written, sessions not yet run. Raises Confidence on everything else here |
 | Singapore CPF article | 48 | Not started |
 | Upkeep: CI action versions, a Playwright upgrade so the test machine can be unpinned, self-hosted fonts, accessibility scan, fix the double focus outline | 25 | Not started |
 | Goals counting invested money | 6 | Needs a decision on how invested value counts |
